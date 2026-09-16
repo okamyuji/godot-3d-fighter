@@ -6,7 +6,7 @@ on:
 
 jobs:
   ci:
-    uses: okamyuji/reusable-workflows/.github/workflows/dotnet-ci.yml@01134f3840c5e24ff40ad85b6fa622534dbfffed # v1
+    uses: okamyuji/reusable-workflows/.github/workflows/dotnet-ci.yml@d08b04efcdf11e0d4acfb28d848add23c8199f4a # v1
     with:
       godot-sha512: "1855960b27ee3ef5e66e5e228cced69d55637b24334a7411162687dcd077d8f9f645348cdb8eae984bec8135d49ed855a1e3a16476786b8bce60774fd8402d13"
 
