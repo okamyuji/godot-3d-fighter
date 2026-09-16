@@ -1,73 +1,90 @@
 # godot-3d-fighter
 
-Virtua Fighter級のリアルな3D格闘ゲームを、Godot 4とC#で作るための方針をまとめた文書です。格闘ロジックと3D表現を分け、ロジックから積み上げます。設計の決定は`docs/adr/`に、型、試合の処理、画面の詳細は`docs/design/`にあります。
+Virtua Fighter級の3D格闘ゲームを、Godot 4とC#で作るプロジェクトです。格闘ロジック（Core）はGodotに依存しないC#クラスライブラリとして実装し、Game側は描画と入力の受け渡しだけを担当します。設計の決定は`docs/adr/`に、型、試合の処理、画面の詳細は`docs/design/`にあります。
+
+## 画面
+
+タイトルから対戦開始まで、実際にGodot上で動作している画面です。
+
+![タイトル画面](docs/images/title-screen.png)
+
+対戦画面では、`MatchSimulator.Step`を毎物理フレーム呼び出し、体力、残り時間、ラウンド数、段階をHUDに表示します。
+
+![対戦画面](docs/images/match-screen.png)
 
 ## 方針
 
-格闘ゲームの手応えは、判定とフレームデータの正確さと、読み合いの規則で決まります。そのため、最初は箱同士で格闘コアと画面の流れを作り、後から3D表現を載せる順番です。ロジックは固定60fpsで更新し、同じ入力列から機種を問わず同じ結果になるように、整数演算だけで書きます。
+格闘ゲームの手応えは、判定とフレームデータの正確さと、読み合いの規則で決まります。ロジックは固定60fpsで更新し、同じ入力列から機種を問わず同じ結果になるよう、整数演算だけで書いています。判断の基準は、アーケードや家庭用機の格闘ゲームとしてお客様が楽しめるかどうかです。
 
 ## エンジンと言語
 
-エンジンはGodot 4.7.2の.NET版です。シーンがテキスト形式で、画面なしでも実行できるため、Claude Codeが読み書きしてテストまで回せます。Unityも選べますが、UnrealのBlueprintはテキストで扱えないため相性が悪いです。
+エンジンはGodot 4.7.2の.NET版、言語はC#です。対象フレームワークはnet10.0です（ADR-0007）。
 
-言語はC#を選びます。格闘ロジックはGodotに依存しないC#クラスライブラリとして書き、Godot側の担当は描画と入力の受け渡しだけです。
+固定小数点の型`Fix16`（Q16.16）を全ての実数値に使い、`float`、`double`、`System.Math`、`System.MathF`、`System.Random`はCore（`src/Core/`）では使いません（ADR-0001、ADR-0009）。この制約は`Microsoft.CodeAnalysis.BannedApiAnalyzers`で機械的に守らせています。
 
-### C#を選ぶ理由
+## プロジェクト構成
 
-固定60fpsの再現性は、浮動小数点を使うと機種やビルド設定で壊れます。C#なら`int`の固定小数点で座標とフレームを扱う設計が素直に書ける点が第一の理由です。
+| プロジェクト | 場所 | 役割 |
+|---|---|---|
+| `Godot3dFighter` | リポジトリ直下、`src/Game/` | Game側。画面（`scenes/`）、入力の受け渡し、`MatchSimulator`の呼び出し、主要導線の走破の実行器（`E2eRunner`） |
+| `Core` | `src/Core/` | 格闘ロジック。Godotの型を参照しない |
+| `Core.Tests` | `tests/Core.Tests/` | Coreのユニットテスト（xUnit v3、MTPモード） |
+| 走破シナリオ | `tests/e2e/` | 主要導線の一覧（`flows.json`）とシナリオ（`scenarios/*.json`） |
 
-ロジックがGodotに依存しなければ、`dotnet test`でGodotを起動せずに検証できます。判定やフレーム計算のテストが速く回るので、タスク単位の検証も短いです。
+全プロジェクトの対象フレームワークはnet10.0です。
 
-ロールバックネットコードは数フレーム分を毎フレーム再計算するため、GDScriptより数倍速いC#の方が余裕を持てます。Claude CodeはC#の学習量が多く、GDScriptより破綻が少ない点も理由です。
+## 画面の構成
 
-### 候補の比較
+| 画面 | シーン | 役割 |
+|---|---|---|
+| タイトル | `scenes/Title.tscn` | 「対戦」「トレーニング」の選択 |
+| キャラ選択 | `scenes/CharacterSelect.tscn` | ステージの選択、両者の決定 |
+| 対戦 | `scenes/Match.tscn` | 試合の進行、決着後にリザルトへ遷移 |
+| リザルト | `scenes/Result.tscn` | 各ラウンドの決着とタイトルへの復帰 |
+| トレーニング | `scenes/Training.tscn` | 相手の動作設定、位置のリセット |
 
-| 軸 | C#（Godot） | GDScript | Rust（Bevy等） |
-|---|---|---|---|
-| 固定小数点による再現性 | 書きやすい | 可能だが冗長 | 最も厳密 |
-| Godotを起動しないユニットテスト | `dotnet test`で独立実行 | GUTで可能だがGodot起動が要る | `cargo test`で独立実行 |
-| ロールバック時の再計算速度 | 十分 | 不足しやすい | 最速 |
-| Claude Codeの生成精度 | 高い | 中 | 高い |
-| 3Dアニメーション連携（AnimationTree、Mixamo） | Godot標準で楽 | Godot標準で楽 | 自前が多く重い |
-
-GDScriptは箱同士の試作までなら十分です。ただしロジックを後からC#へ移すと二度手間になるため、最初からC#で始めます。Rustは再現性と速度で最良ですが、3D化の段階で自作範囲が広がり、個人開発では負担が大きくなります。
-
-### .NETの版
-
-使うのは現在の.NET（旧.NET Core系列）です。Godot 4.7の.NET版は.NET 8以降のSDKを要求するため、.NET Frameworkは対象外になります。このプロジェクトの対象フレームワークはnet10.0です（ADR-0007）。
-
-.NET Core 3.1の次が.NET 5で、以後は「.NET 8」「.NET 10」のように「Core」を付けずに呼びます。.NET Frameworkは4.8で機能追加が止まっており、Windows専用の旧系列です。
+各画面は`IE2eScreen`を実装し、`ScreenName`と`TryInvoke(action)`で主要導線の走破から操作できます。詳細は`docs/design/03-screens-and-e2e.md`にあります。
 
 ## 導入手順
 
 1. Godot 4.7.2の.NET版を入れます。macOSでは`brew install --cask godot-mono`です。
 2. .NET SDK 10を入れます。`dotnet --list-sdks`で10.0.400以上があることを確かめます。
 3. リポジトリを取得し、`git config core.hooksPath .githooks`でpre-commitフックを有効にします。
-4. `dotnet tool restore`でCrap4DotNetなどのツールを入れます。
 
-## プロジェクト構成
+## 動かし方
 
-| プロジェクト | 場所 | 役割 |
-|---|---|---|
-| `Godot3dFighter` | リポジトリ直下 | Game側。描画、入力の受け渡し、画面遷移、主要導線の走破の実行器 |
-| `Core` | `src/Core/` | 格闘ロジック。Godotの型を参照しない |
-| `Core.Tests` | `tests/Core.Tests/` | Coreのユニットテスト（xUnit v3） |
-| 走破シナリオ | `tests/e2e/` | 主要導線の一覧とシナリオ（JSON） |
+Godotエディタでプロジェクトを開くか、次のコマンドで直接起動します。
 
-全プロジェクトの対象フレームワークはnet10.0です。
+```sh
+/Applications/Godot_mono.app/Contents/MacOS/Godot --path .
+```
 
-## 進め方
+P1はWASDとJ（パンチ）、K（キック）、L（ガード）、P2は矢印キーとテンキーの1、2、3を使います。
 
-1. エンジンを決める 使うのはGodot 4.7.2の.NET版です。
-2. リポジトリを作り、CLAUDE.mdに設計ルールを書く 固定60fpsの更新、フレームデータ駆動、ロジックと描画の分離を明記しておきます。ここが以後の全タスクの土台です。
-3. 箱同士で格闘コアと画面の流れを作る 固定のフレーム更新、コマンド入力と先行入力、歩き、ダッシュ、横移動、しゃがみ、上段・中段・下段とガード、投げと投げ抜け、カウンターヒット、ダウンと起き上がり、リングアウトと壁、ステージごとのリングの形、ラウンドの決着を実装します。タイトル、キャラ選択、試合、リザルト、トレーニングの画面と遷移もここで作り、主要導線をすべて走破します。Virtua Fighterらしさはここでほぼ決まります。
-4. 技をデータ化する コマンド、フレーム、ダメージ、判定位置をJSONの表にします。表はClaude Codeに大量生成させ、ロジック側は表を読むだけです。
-5. 3D化する アニメーションはMixamo等から入れ、AnimationTreeで遷移させます。判定の位置はボーンからツールで事前に書き出して技データに持ち、実行時にはボーンを読みません。ルートモーションで移動距離をフレームデータと一致させます。
-6. 画面を作り込む カメラの演出、体力ゲージ、ラウンドの演出、トレーニングの表示を、お客様が遊ぶ品質に仕上げます。画面の構成と遷移は変えません。
-7. CPU対戦AIとネット対戦 まずCPU対戦AIを作り、最後にロールバックネットコードを検討します。手順3で再現性を守っていれば後から載せられます。
+## 品質ゲート
 
-## Claude Codeの使い方
+`git commit`のたびに`.githooks/pre-commit`が次を確かめます（`git config core.hooksPath .githooks`で有効化、ADR-0011）。
 
-1タスクは「入力の保持を実装してテストを書く」程度に小さく切ります。判定やフレーム計算にはユニットテストを必ず書かせ、Godotを起動せずに実行させてください。タスクごとにgitコミットさせ、実装前にPlanモードで設計を確認すると手戻りが減ります。
+1. `tools/doclint.sh`で文書とソースの和文英数字境界スペース、ADRの必須節、先送り語を検出します（ADR-0013）
+2. `dotnet format --verify-no-changes`で書式を確かめます
+3. `dotnet build`で`AnalysisLevel=latest-All`の静的解析を含むビルドを確かめます（ADR-0009）
+4. `dotnet test`でCore.Testsの296件のユニットテストを確かめます
 
-最初は手順3の箱同士の格闘コアをGodotで動かすところから始めると、手応えが早く出ます。
+主要導線の走破は、ヘッドレスのGodotから実行します。
+
+```sh
+godot --headless --fixed-fps 60 --path . -- --e2e tests/e2e/scenarios/f03-knockout.json
+godot --headless --path . -- --check-flows
+```
+
+`--check-flows`は、`flows.json`に載っている7つの導線（F-01からF-07）それぞれに対応するシナリオがあることを確かめます（C-13）。カバレッジ、CRAP値、変異テストの基準はADR-0010にあります。
+
+## 常に成り立つ条件
+
+設計の決定に含まれる「常に成り立つ条件」（C-01からC-35）と、それを確かめるテストの対応表は`docs/design/README.md`にあります。全35条件に対応するテストが揃っています。
+
+## 読む順番
+
+1. 全ADRの一覧と、各ADRが満たす常に成り立つ条件は`docs/adr/README.md`
+2. 常に成り立つ条件とテストの対応表、実装の順序は`docs/design/README.md`
+3. 型、試合の処理、画面の詳細は`docs/design/01-data-structures.md`、`02-match-rules.md`、`03-screens-and-e2e.md`
