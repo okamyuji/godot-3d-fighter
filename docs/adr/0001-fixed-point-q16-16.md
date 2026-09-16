@@ -31,9 +31,10 @@ Coreの座標、速度、距離などの連続量は、すべて`Fix16`（`int`�
 - 加減算は`checked`で行い、あふれは`OverflowException`にします。Coreの`csproj`で`CheckForOverflowUnderflow`をtrueにします。
 - 乗算は`(int)(((long)a.Raw * b.Raw) >> 16)`です。負数の右シフトは算術シフトなので、結果は負の無限大方向へ丸まります。
 - 除算は`(int)(((long)a.Raw << 16) / b.Raw)`です。C#の整数除算なので、結果はゼロ方向へ丸まります。0除算は`DivideByZeroException`のままにします。
+- 乗算と除算の結果を`int`へ戻すキャストも`checked`で、収まらなければ`OverflowException`です。
 - 実数からの変換はJSON読み込み時だけ行います（ADR-0004）。
 - Game側への変換は`Raw / 65536f`をGame側の1か所（`FixConvert`）で行い、Coreは`float`を返しません。
-- 座標成分の絶対値は1024m以下に保ちます（ADR-0002）。この範囲なら距離の二乗（`long`のQ32.32）は2^53未満に収まり、あふれません。
+- 座標成分の絶対値は1024m以下に保ちます（ADR-0002）。2点の差の各成分は2048m以下で、`Raw`は2^27以下です。3成分の二乗和（`long`のQ32.32）は2^56未満なので、`long`の上限（2^63未満）を超えません。
 
 ## 影響
 

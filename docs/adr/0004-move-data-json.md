@@ -19,8 +19,8 @@
 
 ## 決定
 
-- 技データは`System.Text.Json`で読むJSONファイルです。ファイルは`data/characters/<name>.json`と`data/stages/<name>.json`に置きます。
-- 読み込みは`Core.Data.MoveTableLoader.Load(Stream)`が行い、Godot側は`FileAccess`で開いたストリームを渡します。
+- 技データは`System.Text.Json`で読むJSONファイルです。ファイルは`data/characters/<name>.json`、`data/stages/<name>.json`、`data/rules.json`に置きます。
+- 読み込みは`Godot3dFighter.Core.Data.GameDataLoader`の`LoadCharacter(Stream)`、`LoadStage(Stream)`、`LoadRules(Stream)`が行います。Game側は`FileAccess.GetFileAsBytes`で読んだバイト列を`MemoryStream`に包んで渡し、空の配列が返った時は読み込み失敗として扱います。
 - JSONの読み込みには`JsonSerializerContext`のソース生成を使い、リフレクションに頼りません。
 - DTOの実数項目は`decimal`型で受けます。`Fix16`への変換は`decimal.Round(v * 65536m, 0, MidpointRounding.AwayFromZero)`で行い、結果を`int`に収めます。この変換は`Fix16.FromDecimal`の1か所だけです。
 - フレーム数、ダメージ、体力は整数項目です。
@@ -29,5 +29,5 @@
 ## 影響
 
 - 技データの追加や調整は再ビルドなしに行えます。
-- 常に成り立つ条件C-06として「同じJSON文字列からは同じ`MoveTable`が得られ、未知または欠損の項目は読み込み時に例外になる」を置き、`MoveTableLoaderTests`で確かめます。
+- 常に成り立つ条件C-06として「同じJSON文字列からは同じ内容のデータが得られ、未知または欠損の項目は読み込み時に例外になる」を置き、`GameDataLoaderTests`で確かめます。
 - 常に成り立つ条件C-07として「`Fix16.FromDecimal`は0.5を常にゼロから遠い方へ丸める」を置き、`Fix16Tests`で確かめます。

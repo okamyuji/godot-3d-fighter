@@ -23,19 +23,20 @@
 ## 決定
 
 - 全プロジェクトの対象フレームワークはnet10.0です。
-- プロジェクトは4つです。
+- プロジェクトと置き場所は次のとおりです。
 
 | プロジェクト | 場所 | SDK | 役割 |
 |---|---|---|---|
 | `Godot3dFighter` | リポジトリ直下の`Godot3dFighter.csproj` | `Godot.NET.Sdk/4.7.2` | 描画、入力の受け渡し、画面遷移、画面なし走破の実行器 |
 | `Core` | `src/Core/Core.csproj` | `Microsoft.NET.Sdk` | 格闘ロジック。Godotの型を参照しない |
 | `Core.Tests` | `tests/Core.Tests/Core.Tests.csproj` | `Microsoft.NET.Sdk` | Coreのユニットテスト |
-| `E2E`（走破シナリオ） | `tests/e2e/` | 無し（JSONのみ） | 主要導線のシナリオと導線一覧 |
+| `GenTables` | `tools/GenTables/GenTables.csproj` | `Microsoft.NET.Sdk` | sin表とatan表のC#ソースを生成するコンソールアプリ |
+| 走破シナリオ | `tests/e2e/` | 無し（JSONのみ） | 主要導線のシナリオと導線一覧 |
 
 - `Godot3dFighter.csproj`は`<Compile Remove="src/**;tests/**;tools/**" />`で他プロジェクトのソースを除外し、`Core`を`ProjectReference`で参照します。
 - Game側のソースは`game/`に置きます。Godotのシーンは`scenes/`、技データとステージデータは`data/`です。
 - 共通のビルド設定は直下の`Directory.Build.props`に置きます（ADR-0009）。
-- ソリューションは`Godot3dFighter.sln`で、4つ目の走破シナリオはソリューションに含めません。
+- ソリューション`Godot3dFighter.sln`には`Godot3dFighter`、`Core`、`Core.Tests`、`GenTables`を含めます。走破シナリオはJSONだけなので含めません。
 
 ## 影響
 

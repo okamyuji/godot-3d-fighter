@@ -24,7 +24,7 @@
 | `MaxMotionSegmentsPerMove` | 8 | 1技あたりの移動区間の上限 |
 | `PositionLimitMeters` | 1024 | 距離の二乗が`long`に収まる範囲（ADR-0001、ADR-0002） |
 | `SinTableSize` | 1024 | 角度の刻み約0.35度（ADR-0014） |
-| `AtanTableSize` | 256 | atan2の比の刻み1/256（ADR-0014） |
+| `AtanTableSize` | 257 | atan2の比の刻み1/256。比1を含むため添字0から256（ADR-0014） |
 | `CommandWindowFrames` | 10 | コマンドの隣り合う要素の間に許す最大フレーム数 |
 | `MaxCommandElements` | 4 | 1コマンドの要素数の上限（例「236P」は4要素） |
 | `NoMove` | 255 | 「技を出していない」を表す技番号 |
@@ -52,7 +52,8 @@ godot-3d-fighter/
     Limits.cs
     Math/  Fix16.cs Vec3Fix.cs Angle16.cs IntMath.cs SinTable.g.cs AtanTable.g.cs Trig.cs
     Input/ InputFrame.cs InputBuffer.cs CommandParser.cs
-    Data/  MoveTable.cs MoveData.cs HitSphere.cs StageData.cs Rules.cs MoveTableLoader.cs JsonContext.cs
+    Data/  CharacterData.cs MoveData.cs HitWindow.cs MotionSegment.cs HitHeight.cs HitSphere.cs StageData.cs Rules.cs
+           GameDataLoader.cs GameDataFormatException.cs JsonDtos.cs JsonContext.cs
     State/ StateKind.cs PlayerState.cs MatchState.cs MatchContext.cs RoundPhase.cs
     Sim/   MatchSimulator.cs Collision.cs RingOut.cs Xorshift32.cs StateHash.cs
   tests/Core.Tests/          xUnit v3
@@ -64,7 +65,7 @@ godot-3d-fighter/
 
 ## 型の定義
 
-すべての型は`namespace Godot3dFighter.Core.*`に置きます。`Math/`、`Input/`、`State/`の構造体は`readonly`または`[StructLayout(LayoutKind.Sequential, Pack = 1)]`で、参照型の項目を持たない形です。`Data/`の型と`MatchContext`はクラスで、文字列と配列を持ちます。
+すべての型は`namespace Godot3dFighter.Core.*`に置きます。`Math/`、`Input/`、`State/`の構造体は`readonly`または`[StructLayout(LayoutKind.Sequential, Pack = 1)]`で、参照型の項目を持たない形です。`Data/`の型のうち`HitSphere`は`readonly record struct`で、それ以外と`MatchContext`はクラスです。クラスは文字列と配列を持ちます。
 
 ### Fix16（ADR-0001）
 
@@ -143,7 +144,7 @@ public struct InputBuffer
 | `Facing` | `Angle16` | 2 | 相手への向き |
 | `StunFrames` | `ushort` | 2 | ヒットまたはガード硬直の残りフレーム |
 | `HitstopFrames` | `byte` | 1 | ヒットストップの残りフレーム |
-| `State` | `StateKind` | 1 | 状態遷移の現在状態 |
+| `State` | `StateKind`（基底型`byte`） | 1 | 状態遷移の現在状態 |
 | `CurrentMove` | `byte` | 1 | 技番号。`Limits.NoMove`は技なし |
 | `HasHitThisMove` | `byte` | 1 | 0または1。現在の技で相手に当たったか |
 | `Slot` | `byte` | 1 | 0がP1、1がP2 |
@@ -159,7 +160,7 @@ public struct InputBuffer
 | `PhaseFrames` | `ushort` | 2 | 現在の段階の経過フレーム |
 | `RoundWins` | `byte`×2（`[InlineArray(2)]`） | 2 | 各プレイヤーの先取数 |
 | `RoundNumber` | `byte` | 1 | 1始まり |
-| `Phase` | `RoundPhase` | 1 | `Intro`、`Fight`、`RoundEnd`、`MatchEnd` |
+| `Phase` | `RoundPhase`（基底型`byte`） | 1 | `Intro`、`Fight`、`RoundEnd`、`MatchEnd` |
 
 合計は224バイトです。`Unsafe.SizeOf<MatchState>()`がこの値と一致することをテストで確かめます（C-08）。
 
@@ -198,13 +199,13 @@ public struct InputBuffer
 | `Hitstop` | `byte` | 命中時に両者に掛かるヒットストップのフレーム数 |
 | `Hitstun` | `ushort` | 命中時に相手に掛かる硬直のフレーム数 |
 | `Blockstun` | `ushort` | ガード時に相手に掛かる硬直のフレーム数 |
-| `Height` | `HitHeight` | `High`、`Mid`、`Low`。ガードの成否に使う |
+| `Height` | `HitHeight`（基底型`byte`） | `High`、`Mid`、`Low`。ガードの成否に使う |
 | `Knockdown` | `bool` | 命中時にダウンさせるか |
 | `Pushback` | `Fix16` | 命中またはガード時に相手を後ろへ押す距離（m） |
 | `Motion` | `MotionSegment`の配列（最大8） | 技中の移動。`From`、`To`（フレーム）、`ForwardPerFrame`（m） |
 | `Windows` | `HitWindow`の配列（最大16） | 判定区間。`From`、`To`（フレーム）、`Hit`（最大4）、`Hurt`（最大8） |
 
-`HitWindow.Hurt`が空の区間では`IdleHurtSpheres`を使います。`HitSphere`は`Center`（`Vec3Fix`、キャラ座標）と`Radius`（`Fix16`）です。
+`HitWindow.Hurt`が空の区間と、どの区間にも入らないフレームでは`IdleHurtSpheres`を使います。`HitSphere`は`Center`（`Vec3Fix`、キャラ座標）と`Radius`（`Fix16`）です。
 
 JSONの例（`data/characters/box.json`の一部）は次のとおりです。
 
@@ -233,7 +234,7 @@ JSONの例（`data/characters/box.json`の一部）は次のとおりです。
 }
 ```
 
-実数の項目（`walkSpeed`、`x`、`y`、`z`、`r`、`pushback`、`forwardPerFrame`）はDTOで`decimal`として受け、`Fix16.FromDecimal`で変換します。`MoveTableLoader`は上限（`Limits`）を超える配列、未知の項目、欠けた必須項目を`MoveTableFormatException`にします。
+実数の項目（`walkSpeed`、`x`、`y`、`z`、`r`、`pushback`、`forwardPerFrame`）はDTOで`decimal`として受け、`Fix16.FromDecimal`で変換します。`GameDataLoader`は、上限（`Limits`）を超える配列、同じ技の中で範囲が重なる判定区間、`From`が`To`より大きい区間、未知の項目、欠けた必須項目を`GameDataFormatException`にします。`Rules`については、`RoundTimeSeconds`が1以上1092以下（60倍して`ushort`に収まる値）、`RoundsToWin`が1以上、`InitialHealth`が1以上、`Seed`が0以外であることも読み込み時の検査対象です。
 
 ### StageDataとRules
 
@@ -252,7 +253,7 @@ JSONの例（`data/characters/box.json`の一部）は次のとおりです。
 | `Guard` | `Idle`または`Walk`でGを押している | Gを離す、`Guard`中に被弾（`Blockstun`へ） |
 | `Blockstun` | `Guard`中に攻撃を受けた | `StunFrames`がゼロ |
 | `Hitstun` | ガード不成立で攻撃を受けた（`Knockdown`が偽） | `StunFrames`がゼロ |
-| `Down` | `Knockdown`が真の攻撃を受けた。リングアウト | `StunFrames`がゼロで`Rise`へ |
+| `Down` | `Knockdown`が真の攻撃を受けた（`StunFrames`に技の`Hitstun`を入れる）。リングアウト | `StunFrames`がゼロで`Rise`へ |
 | `Rise` | `Down`から起き上がり | `Rules.RiseFrames`が経過 |
 | `Dead` | 体力がゼロ以下 | ラウンド終了まで出ない |
 
@@ -260,7 +261,7 @@ JSONの例（`data/characters/box.json`の一部）は次のとおりです。
 
 ## フレーム処理の順序
 
-`MatchSimulator.Step(in MatchState state, InputFrame p1, InputFrame p2, in MatchContext ctx)`は、次の順で新しい`MatchState`を作ります。各手順は`Sim/`配下の純粋関数で、状態を書き換えずに新しい値を返します。
+`MatchSimulator.Step(in MatchState state, InputFrame p1, InputFrame p2, MatchContext ctx)`は、次の順で新しい`MatchState`を作ります。各手順は`Sim/`配下の純粋関数で、状態を書き換えずに新しい値を返します。
 
 1. 入力の検証と保存 両入力の`IsNormalized`を確かめ、各プレイヤーの`Inputs`に`Push`します。
 2. 段階の進行 現在の段階（`Phase`）が`Intro`、`RoundEnd`、`MatchEnd`なら経過（`PhaseFrames`）を進め、規定フレームで次の段階へ移します。`Fight`以外では以下を飛ばします。
@@ -285,12 +286,12 @@ JSONの例（`data/characters/box.json`の一部）は次のとおりです。
 | C-03 | リングアウトは距離の二乗の比較で決まり、半径ちょうどはリング内 | 0002 | `RingOutTests`。半径ちょうど、半径+1/65536 |
 | C-04 | Coreに入る`InputFrame`は正規化済みで、ビット7は0 | 0003 | `InputFrameTests`。上下同時、左右同時、ビット7で`ArgumentException` |
 | C-05 | `InputBuffer`は直近64フレームだけを保持する | 0003 | `InputBufferTests`。65回`Push`して`At(63)`と`At(64)` |
-| C-06 | 同じJSONから同じ`MoveTable`。未知と欠損の項目は例外 | 0004 | `MoveTableLoaderTests` |
+| C-06 | 同じJSONから同じ内容のデータ。未知と欠損の項目は例外 | 0004 | `GameDataLoaderTests`。読み込んだ結果を項目ごとに比べる |
 | C-07 | `Fix16.FromDecimal`は0.5をゼロから遠い方へ丸める | 0004 | `Fix16Tests`。0.5/65536と-0.5/65536 |
 | C-08 | `MatchState`に詰め物のバイトが無い（224バイト） | 0005 | `MatchStateLayoutTests` |
 | C-09 | 同じ状態と入力から`Step`は同じ状態と同じハッシュを返す | 0005 | `MatchSimulatorTests`。同じ入力列を2回流して比較 |
 | C-10 | 球の重なりは距離の二乗の比較で決まり、接触は重なり | 0006 | `HitSphereTests`。半径の和ちょうど、+1/65536 |
-| C-11 | 攻撃判定4個、やられ判定8個を超えるデータは読み込み時に例外 | 0006 | `MoveTableLoaderTests` |
+| C-11 | 1区間の攻撃判定4個、やられ判定8個を超える区間と、範囲の重なる区間は読み込み時に例外 | 0006 | `GameDataLoaderTests` |
 | C-12 | `Core`はGodotSharpを参照しない | 0007 | `AssemblyReferenceTests` |
 | C-13 | `flows.json`の全導線に対応するシナリオがある | 0008 | `E2eRunner --check-flows` |
 | C-14 | `Core`の公開APIに`float`と`double`が現れない | 0009 | `PublicApiTests` |
@@ -307,7 +308,7 @@ JSONの例（`data/characters/box.json`の一部）は次のとおりです。
 4. 三角関数 生成ツール`tools/GenTables`で`SinTable.g.cs`と`AtanTable.g.cs`を生成し、`Trig`を実装してC-15とC-16を確かめます。
 5. 入力 型`InputFrame`と`InputBuffer`を実装し、C-04とC-05を確かめます。
 6. 判定 型`HitSphere`と`Collision`（C-10）、`RingOut`（C-03）を実装します。
-7. 技データ 定数`Limits`、DTO、`JsonContext`、`MoveTableLoader`を実装してC-06とC-11を確かめ、`data/characters/box.json`、`data/stages/default.json`、`data/rules.json`を置きます。
+7. 技データ 定数`Limits`、DTO、`JsonContext`、`GameDataLoader`を実装してC-06とC-11を確かめ、`data/characters/box.json`、`data/stages/default.json`、`data/rules.json`を置きます。
 8. 試合状態 型`PlayerState`、`MatchState`、`MatchContext`、`StateHash`を実装し、C-08を確かめます。
 9. コマンド判定 判定器`CommandParser`でテンキー表記の解釈と`CommandWindowFrames`を実装します。
 10. フレーム処理 関数`MatchSimulator.Step`の手順1から11を実装し、C-02とC-09を確かめます。
