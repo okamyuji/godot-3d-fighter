@@ -8,15 +8,16 @@
 
 一次情報として次を確認しました。
 
-- xUnit v3の最新は4.0.1です。公式ドキュメントでは、`dotnet test`は既定でVSTest経由で動き、Microsoft.Testing.Platformモードでは標準のCoverletが使えません。
-- NUnitの最新は4.6.1、MSTestの最新は4.4.1です。
-- Stryker.NET 5.0.0の`test-runner`の既定は`vstest`で、`mtp`はプレビューです。
-- Crap4DotNet 0.1.1はCoverletのcobertura形式を入力にします。
+- xUnit v3の最新は4.0.1です。NUnitの最新は4.6.1、MSTestの最新は4.4.1です。
+- .NET 10 SDKでは、`Microsoft.Testing.Platform`（MTP）に対応したテストプロジェクトで`dotnet test`をVSTest経由で動かすと、ビルド時に`Testing with VSTest target is no longer supported`というエラーで止まります。xUnit v3はMTPに標準で対応しているため、この制限を受けます（実機で確認）。
+- `dotnet test`をMTPで動かすには、リポジトリ直下の`global.json`に`{ "test": { "runner": "Microsoft.Testing.Platform" } }`を置きます。これで`dotnet test`はxUnit v3のMTP実行体を直接呼び、`xunit.runner.visualstudio`（VSTestアダプタ）と`Microsoft.NET.Test.Sdk`（VSTest連携パッケージ）は無くても動きます（実機で確認）。
+- MTPでのカバレッジ収集には`Microsoft.Testing.Extensions.CodeCoverage`（最新18.11.2）を使います。`dotnet test -- --coverage --coverage-output-format cobertura --coverage-output <path>`で、参照プロジェクトのクラス・メソッド・行ごとのcobertura形式を得られます（実機で確認。テストプロジェクトと参照プロジェクトを別ディレクトリに分けないと、参照側のコードが正しく計測されないことも確認）。
+- Crap4DotNet 0.1.1はCoverletの出力もMTPの`Microsoft.Testing.Extensions.CodeCoverage`の出力も同じcobertura形式として読み、正しくCRAP値を算出します（実機で確認）。
 - gdunit4.api 5.0.0はGodotSharp 4.4.0に依存し、対応表はGodot 4.4.1までです。Godot 4.7での動作は確認できていません。
 
 | 軸 | xUnit v3 4.0.1 | NUnit 4.6.1 | MSTest 4.4.1 |
 |---|---|---|---|
-| 実行モード | VSTest（既定） | VSTest | VSTest |
+| MTPでの`dotnet test` | 標準対応 | 別途アダプタが要る | 別途アダプタが要る |
 | データ駆動テスト | `[Theory]`と`[InlineData]` | `[TestCase]` | `[DataRow]` |
 | 並列実行 | 既定でクラス単位 | 属性で指定 | 属性で指定 |
 
@@ -24,7 +25,9 @@
 
 ## 決定
 
-- ユニットテストはxUnit v3 4.0.1で、VSTestモードで動かします。参照は`xunit.v3` 4.0.1、`xunit.runner.visualstudio` 4.0.0、`Microsoft.NET.Test.Sdk` 18.10.1、`coverlet.msbuild` 10.0.1です。
+- ユニットテストはxUnit v3 4.0.1で、MTPモードで動かします。参照は`xunit.v3` 4.0.1と`Microsoft.Testing.Extensions.CodeCoverage` 18.11.2だけです。`xunit.runner.visualstudio`と`Microsoft.NET.Test.Sdk`は参照しません。
+- リポジトリ直下に`global.json`を置き、`test.runner`を`Microsoft.Testing.Platform`にします。
+- `dotnet test`の実行は`dotnet test <プロジェクトかディレクトリのパス> [-c <構成>] [--no-build]`です。カバレッジが要る時は`-- --coverage --coverage-output-format cobertura --coverage-output <path>`を続けます。
 - 主要導線の走破はGame側の`E2eRunner`が行います。起動は`godot --headless --fixed-fps 60 --path . -- --e2e tests/e2e/scenarios/<name>.json`で、シナリオの各フレームの入力をCoreの入力境界に注入し、期待する画面と結果に達したら終了コード0、達しなければ1で終了します。
 - 導線の一覧は`tests/e2e/flows.json`に持ちます。各導線には1つ以上のシナリオが対応し、`E2eRunner --check-flows`は対応するシナリオが無い導線があれば終了コード1を返します。
 - 主要導線は次のとおりです。

@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+set -eu
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+"$ROOT/tools/doclint.sh"
+dotnet format "$ROOT/Godot3dFighter.sln" --verify-no-changes
+dotnet build "$ROOT/Godot3dFighter.sln" -c Debug
+dotnet test "$ROOT/tests/Core.Tests" -c Debug --no-build
