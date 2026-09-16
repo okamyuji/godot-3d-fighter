@@ -10,6 +10,10 @@ trim_trailing_whitespace = true
 [*.cs]
 indent_size = 4
 
+# CA1028: 列挙型の基底型はbyteに統一する（ADR-0005、ADR-0009）。MatchStateとPlayerStateの
+# 詰め物なしレイアウトが基底型byteに依存するため、既定のintへの変更は提案しない。
+dotnet_diagnostic.CA1028.severity = none
+
 [*.{json,yml,yaml}]
 indent_size = 2
 
