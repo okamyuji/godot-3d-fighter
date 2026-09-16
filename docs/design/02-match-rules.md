@@ -13,6 +13,26 @@
 
 開始位置は、P1が`(-StartDistance / 2, 0, 0)`、P2が`(StartDistance / 2, 0, 0)`です。P1の`Facing`は0、P2は32768、`CameraYaw`は0、体力は`InitialHealth`、状態は`Idle`、`RoundTimerFrames`は`RoundTimeSeconds * 60`です。
 
+## 入力の語
+
+この文書の手順は、入力について次の語だけを使います。定義はADR-0017に従います。
+
+| 語 | 意味 |
+|---|---|
+| 押している | そのフレームの`InputFrame`でボタンのビットが1 |
+| 押した瞬間 | そのフレームで押していて、1フレーム前に押していない |
+| 新しく入った方向 | そのフレームの方向の数字が、1フレーム前の数字と違う |
+| 同時押しの成立 | 2つ以上のボタンの組について、Gを除く各ボタンの押した瞬間が直近`SimultaneousPressFrames`フレーム以内にあり、そのフレームで組の全ボタンを押している |
+
+## 位置の確定
+
+2人を互いに離す向きは、相手の足元から自分の足元への水平の向きです。2人の水平距離が0の時は、直前の`CameraYaw`で画面の左に立つプレイヤーを`Trig.Direction(CameraYaw + 32768)`の向きへ、右に立つプレイヤーを`Trig.Direction(CameraYaw)`の向きへ離します（ADR-0015）。
+
+位置を書き換えた処理の直後には、必ず次の順で位置を確定します。対象は、移動（手順6）、押し合い（手順7）、押し離し、投げ抜けの引き離し、投げの終わりの位置です。
+
+1. ADR-0002の手順で壁の縁から押し戻す
+2. 各成分を`±PositionLimitMeters`に収める
+
 ## 状態と遷移
 
 「行動の判断」は、ADR-0017の順で行動を選ぶ処理です。行動の判断に入る状態へ戻ったフレームと、取り消し可能な時点に入ったフレームでは、先行入力（`BufferFrames`）を使います。新しい状態に入ると`StateFrame`は0になり、そのフレームでは増やしません。
@@ -33,22 +53,26 @@
 | `Hitstun` | しない | ダウンしない命中 | `StunFrames`が0で行動の判断 |
 | `WallStun` | しない | 命中で壁に押し戻された（ADR-0024） | `StunFrames`が0で行動の判断 |
 | `Down` | しない | ダウンする命中、ダウンさせる投げ | 起き上がりの入力（下の節） |
-| `Tech` | しない | ダウンから`TechFrames`以内のP+K+G | `StateFrame`が`TechRecoveryFrames`で行動の判断 |
+| `Tech` | しない | `Down`で`TechQueued`が付いている（下の節） | `StateFrame`が`TechRecoveryFrames`で行動の判断 |
 | `RollIn`、`RollOut` | しない | ダウン中の上、下 | `StateFrame`が`RollFrames`で`Rise` |
 | `Rise` | しない | ダウン中のG、`DownMaxFrames`の経過、転がりの終わり | `StateFrame`が`RiseFrames`で行動の判断 |
-| `Dead` | しない | 体力0以下 | ラウンドの終わりまで続く |
+| `Dead` | しない | 体力0以下（トレーニングを除く） | ラウンドの終わりまで続く |
 
 技を始めると、`State`を`Attack`、`CurrentMove`を技番号にし、`PlayerFlags.HasHitThisMove`を消します。`Attack`と`Throwing`以外に移る時は`CurrentMove`を`NoMove`にします。
 
 ### 起き上がりの入力（ADR-0021）
 
-`Down`に入った時に`PlayerFlags.DownHitTaken`を消します。`Down`の間は、毎フレーム次の順で判定します。
+`Down`に入る時に`PlayerFlags.DownHitTaken`と`PlayerFlags.TechQueued`を消し、入力履歴の直近`BufferFrames`フレーム以内にP+K+Gの同時押しの成立があれば`TechQueued`を付けます。
 
-1. `StateFrame`が`TechFrames`未満で、P、K、Gがそろって押され、そのうち1つ以上がこのフレームに押された時は`Tech`です。レバーの上下で移動の向きを決め、中立ならその場です。
+受け身の入力は、止まっているフレームも含めて`Down`の間の毎フレーム見ます。そのフレームにP+K+Gの同時押しが成立し、`StateFrame`が`TechFrames`以下なら`TechQueued`を付けます。止まっているフレームでは、手順3でこの確認だけを行います。
+
+止まっていないフレームでは、手順4で`StateFrame`を増やし、上の確認をしてから、次の順で判定します。
+
+1. `TechQueued`が付いていれば`Tech`です。このフレームのレバーの上下で移動の向きを決め、中立ならその場です。
 2. `StateFrame`が`DownMinFrames`未満なら、ほかの入力を受け付けません。
-3. 上が新しく入ったら`RollIn`、下方向が新しく入ったら`RollOut`です。
-4. PかKが押されたら、そのボタンをコマンドに持つ`RisingAttack`の技を始めます。技が無いボタンは無視します。
-5. Gが押されたら`Rise`です。
+3. 上が新しく入った方向なら`RollIn`、下方向（1、2、3）が新しく入った方向なら`RollOut`です。
+4. PかKを押した瞬間なら、そのボタンをコマンドに持つ`RisingAttack`の技を始めます。技が無いボタンは無視します。
+5. Gを押した瞬間なら`Rise`です。
 6. `StateFrame`が`DownMaxFrames`に達したら`Rise`です。
 
 ## 画面上の左右と方向の数字
@@ -69,17 +93,17 @@ digit = 5 + 3 * v + h
 `Step`は次の順で新しい状態を作ります。各手順は`Sim/`の関数で、状態を書き換えずに新しい値を返します。
 
 1. 入力の保存 両方の入力の`IsNormalized`を確かめ、偽なら`ArgumentException`です。各プレイヤーの`Inputs`に`Push`し、`LastHitKind`を`None`に戻します。
-2. 段階の進行 段階が`Intro`なら`PhaseFrames`を増やし、`IntroFrames`に達したら`Fight`にします。`RoundEnd`なら`PhaseFrames`を増やし、`RoundEndFrames`に達したら、試合が終わっていれば`MatchEnd`、終わっていなければ次のラウンドの開始位置と`Intro`にします。`MatchEnd`なら`PhaseFrames`を増やすだけで、上限の65535で止めます。`Fight`以外では手順13へ進みます。
-3. ヒットストップ 残り（`HitstopFrames`）が1以上のプレイヤーは1減らし、このフレームは「止まっている」とします。止まっているプレイヤーは手順4から8を行わず、投げの判定もしません。やられ判定は残ります。
+2. 段階の進行 段階が`Intro`なら`PhaseFrames`を増やし、`IntroFrames`に達したら`Fight`にします。`RoundEnd`なら`PhaseFrames`を増やし、`RoundEndFrames`に達したら、試合が終わっていれば`MatchEnd`、終わっていなければ次のラウンドの開始位置と`Intro`にします。開始位置へ戻すフレームでは、`CameraYaw`を0にします。`MatchEnd`なら`PhaseFrames`を増やすだけで、上限の65535で止めます。`Fight`以外では手順13へ進みます。
+3. ヒットストップ 残り（`HitstopFrames`）が1以上のプレイヤーは1減らし、このフレームは「止まっている」とします。止まっているプレイヤーは手順4から8を行わず、投げの判定もしません。やられ判定は残ります。`Down`で止まっているプレイヤーには、受け身の入力の確認（起き上がりの入力の節）だけを行います。
 4. 状態の経過 止まっていないプレイヤーの`StateFrame`を増やし（上限65535）、`StunFrames`が1以上なら1減らします。状態の表の「終わる条件」、起き上がりの入力、投げ抜けの入力、投げの終わりの処理を行います。
 5. 行動の判断 行動を受け付けるプレイヤーについて、ADR-0017の順で行動を選びます。
-6. 移動 状態から`Velocity`を決め、`Position`に足して、各成分を`±PositionLimitMeters`に収めます。向きは`Trig.Direction`で求めます。前歩き、後ろ歩き、ダッシュは`Facing`の前後、横移動と転がりと受け身はADR-0016の向き、`Attack`は経過フレームを含む`Motion`の`ForwardPerFrame`だけ`Facing`の前へ動きます。ほかの状態では`Velocity`は0です。
-7. 体の押し合いと壁 両者をADR-0015の手順で押し出します。どちらかが`Throwing`か`Thrown`なら押し合いは行いません。続けて、ADR-0002の手順で壁の縁から押し戻し、座標を`±PositionLimitMeters`に収めます。
+6. 移動 状態から`Velocity`を決めて`Position`に足し、位置を確定します。向きは`Trig.Direction`で求めます。前歩き、後ろ歩き、ダッシュは`Facing`の前後、横移動と転がりと受け身はADR-0016の向き、`Attack`は経過フレームを含む`Motion`の`ForwardPerFrame`だけ`Facing`の前へ動きます。ほかの状態では`Velocity`は0です。
+7. 体の押し合いと壁 両者をADR-0015の手順で、互いに離す向きへ押し出します。どちらかが`Throwing`か`Thrown`なら押し合いは行いません。続けて、2人の位置を確定します。
 8. 向きの更新 対象はADR-0015に挙げた状態のプレイヤーだけで、相手の足元への角度を`Trig.Atan2(-dz, dx)`で求めて`Facing`にします。2人の水平距離が0なら変えません。
 9. 画面の左右 画面の右方向（`CameraYaw`）を`CameraSide`で更新します。
 10. 投げの判定 状態が`Attack`で投げの技、`StateFrame`が`Startup`、止まっていないプレイヤーについて、ADR-0019の条件で投げの候補を作ります。
 11. 打撃の判定と適用 下の節の手順で、2人分の結果を求めてからまとめて適用します。続けて、このフレームに命中かカウンターヒットを受けていない投げた側の候補を成立させます。2人の投げが同時に成立する時は、2人とも`ThrowEscape`にします。
-12. 決着 ラウンドの決着をADR-0022の手順で判定します。トレーニングでは、リングの外に出たプレイヤーがいれば`ResetPositions`と同じ状態にします。
+12. 決着 ラウンドの決着をADR-0022の手順で判定します。トレーニングでは決着を判定しません。代わりに、このフレームに行動の判断を受け付ける状態へ戻ったプレイヤーの体力を`InitialHealth`に戻します。リングの外に出たプレイヤーがいれば、`ResetPositions`と同じ状態にします。この時`CameraYaw`は0になります。
 13. フレームの更新 フレーム番号（`FrameNumber`）を増やします。`Fight`でトレーニングでなく、`RoundTimerFrames`が1以上なら1減らします。
 
 ### 打撃の判定と適用（ADR-0006、ADR-0018、ADR-0020、ADR-0021）
@@ -100,14 +124,16 @@ digit = 5 + 3 * v + h
 
 | 結果 | 受けた側 | 攻撃した側 |
 |---|---|---|
-| ガード | 立ちガードなら`Blockstun`、しゃがみガードなら`CrouchBlockstun`。`StunFrames`は技の`Blockstun`、`Facing`の前へ`Pushback`離す、`LastHitKind`は`Guarded` | `HasHitThisMove`を付ける |
-| 命中 | 体力から`Damage`を引く。`Knockdown`なら`Down`、違えば`Hitstun`で`StunFrames`は`Hitstun`。押し離す。`LastHitKind`は`Hit` | 同上 |
+| ガード | 立ちガードなら`Blockstun`、しゃがみガードなら`CrouchBlockstun`。`StunFrames`は技の`Blockstun`。攻撃した側から互いに離す向きへ`Pushback`だけ押し離す。`LastHitKind`は`Guarded` | `HasHitThisMove`を付ける |
+| 命中 | 体力から`Damage`を引く。`Knockdown`なら`Down`、違えば`Hitstun`で`StunFrames`は`Hitstun`。ガードと同じ向きへ押し離す。`LastHitKind`は`Hit` | 同上 |
 | カウンターヒット | `CounterDamage`、`CounterHitstun`、`CounterKnockdown`で命中と同じ処理。`LastHitKind`は`CounterHit` | 同上 |
 | ダウン中への命中 | 体力から`Damage`を引き、`DownHitTaken`を付ける。状態と`StateFrame`は変えない。`LastHitKind`は`Hit` | 同上 |
 
-押し離した後は、受けた側を壁の縁から押し戻します。命中かカウンターヒットで押し戻しが起き、`WallHitTaken`が消えていれば、受けた側を`WallStun`にし、`StunFrames`を`WallStunFrames`、`LastHitKind`を`WallHit`か`CounterWallHit`にして、`WallHitTaken`を付けます。ダウンさせる攻撃でも同じです。`WallHitTaken`は、行動の判断を受け付ける状態へ戻ったフレームに消します。
+押し離した後は、受けた側の位置を確定します。命中かカウンターヒットで押し戻しが起き、`WallHitTaken`が消えていれば、受けた側を`WallStun`にし、`StunFrames`を`WallStunFrames`、`LastHitKind`を`WallHit`か`CounterWallHit`にして、`WallHitTaken`を付けます。ダウンさせる攻撃でも同じです。`WallHitTaken`は、行動の判断を受け付ける状態へ戻ったフレームに消します。
 
-ガード、命中、カウンターヒットのいずれかが起きたら、2人の`HitstopFrames`を、現在の値と、このフレームに当たった技の`Hitstop`の最大値にします。適用の後、体力が0以下のプレイヤーは`Dead`です。
+ガード、命中、カウンターヒット、ダウン中への命中のいずれかが起きたら、2人の`HitstopFrames`を、現在の値と、このフレームに当たった技の`Hitstop`の最大値にします。止まっている間は、ダウン中の`StateFrame`も増えません（ADR-0021）。
+
+適用の後、体力が0以下のプレイヤーは`Dead`です。トレーニングでは、体力が1未満なら1にし、`Dead`にしません（ADR-0022）。
 
 ### カプセルの重なり（ADR-0006）
 
@@ -137,9 +163,11 @@ P1とQ1、P2とQ2はそれぞれのカプセルの両端、r1とr2は半径で�
 
 ### 投げの入力と終わり（ADR-0019）
 
-投げが成立したフレームに、投げられた側の入力履歴の直近`BufferFrames`フレームから、Gを含むボタンが押された最も古いフレームを探します。見つかればそのフレームの入力を、見つからなければ`Thrown`の間に最初にGを含むボタンが押されたフレームの入力を、投げ抜けの入力とします。判定は1回だけで、`PlayerFlags.ThrowEscapeTried`を付けた後の入力は対象外です。入力が投げのコマンドと一致すれば、2人を`ThrowEscape`にして、水平距離が`ThrowEscapeDistance`になるよう半分ずつ離します。
+投げ抜けの受付範囲は、投げが成立したフレームの`BufferFrames`フレーム前から、`Thrown`の終わりまでです。この範囲で投げられた側がPかKを最初に押した瞬間のフレームを、起点とします。Gだけを押した瞬間は起点にしません。押し続けているGは、起点のフレームの入力に含みます。
 
-`Throwing`の`StateFrame`が`ThrowEscapeFrames`に達したら、投げられた側の体力から`Damage`を引き、位置を「投げた側の足元 + `Trig.Rotate(ThrowEndOffset, 投げた側のFacing)`」にして壁の縁から押し戻し、`Facing`を投げた側へ向けます。`Knockdown`なら`Down`、違えば`Hitstun`です。`LastHitKind`は`Thrown`で、体力が0以下なら`Dead`です。投げた側は`Attack`のまま`StateFrame`を`Startup + Active`にして、硬直に入ります。
+起点から`SimultaneousPressFrames`フレーム後まで（受付範囲の終わりを超えない）の各フレームで、投げのコマンドが成立するかをADR-0017の規則で確かめます。方向は投げられた側の左右で読みます。成立すれば、2人を`ThrowEscape`にします。そして互いに離す向きへ、水平距離が`ThrowEscapeDistance`になるよう半分ずつ離し、2人の位置を確定します。この間に成立しなければ`PlayerFlags.ThrowEscapeTried`を付け、それより後の入力では抜けられません。起点が投げの成立より前にある時は、成立したフレームの手順11でこの確認を行います。
+
+`Throwing`の`StateFrame`が`ThrowEscapeFrames`に達したら、投げられた側の体力から`Damage`を引きます。位置を「投げた側の足元 + `Trig.Rotate(ThrowEndOffset, 投げた側のFacing)`」にして確定し、`Facing`を投げた側へ向けます。`Knockdown`なら`Down`、違えば`Hitstun`です。`LastHitKind`は`Thrown`です。体力が0以下なら`Dead`ですが、トレーニングでは体力を1にします。投げた側は`Attack`のまま`StateFrame`を`Startup + Active`にして、硬直に入ります。
 
 ## 決着（ADR-0022）
 

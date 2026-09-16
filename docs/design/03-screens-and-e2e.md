@@ -74,6 +74,9 @@ godot --headless --path . -- --check-flows
     { "expectPhase": "Fight", "withinFrames": 120 },
     { "frames": 20, "p1": "6", "p2": "5" },
     { "frames": 1, "p1": "5P", "p2": "5" },
+    { "frames": 40, "p1": "5", "p2": "5" },
+    { "frames": 10, "p1": "6", "p2": "5" },
+    { "frames": 1, "p1": "5P", "p2": "5" },
     { "frames": 30, "p1": "5", "p2": "5" },
     { "expectRoundEnd": { "reason": "KnockOut", "winners": [1] }, "withinFrames": 600 }
   ]

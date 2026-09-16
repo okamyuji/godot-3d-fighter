@@ -142,7 +142,7 @@ public struct InputBuffer
 | 型 | 値 |
 |---|---|
 | `StateKind` | `Idle`、`Walk`、`BackWalk`、`Crouch`、`Guard`、`CrouchGuard`、`SidestepIn`、`SidestepOut`、`Dash`、`Backdash`、`Attack`、`Throwing`、`Thrown`、`ThrowEscape`、`Blockstun`、`CrouchBlockstun`、`Hitstun`、`WallStun`、`Down`、`Tech`、`RollIn`、`RollOut`、`Rise`、`Dead` |
-| `PlayerFlags` | `[Flags]`。`HasHitThisMove`=1、`DownHitTaken`=2、`ThrowEscapeTried`=4、`WallHitTaken`=8 |
+| `PlayerFlags` | `[Flags]`。`HasHitThisMove`=1、`DownHitTaken`=2、`ThrowEscapeTried`=4、`WallHitTaken`=8、`TechQueued`=16 |
 | `HitKind` | `None`、`Hit`、`CounterHit`、`WallHit`、`CounterWallHit`、`Guarded`、`Thrown`、`ThrowEscaped` |
 | `RoundPhase` | `Intro`、`Fight`、`RoundEnd`、`MatchEnd` |
 | `RoundEndReason` | `None`、`KnockOut`、`RingOut`、`TimeUp` |
