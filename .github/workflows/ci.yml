@@ -9,4 +9,4 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: okamyuji/reusable-workflows/.github/workflows/security-scan.yml@v1
+    uses: okamyuji/reusable-workflows/.github/workflows/security-scan.yml@d760737e82c73894e10ba8490a719751e0dd3bc8 # v1
