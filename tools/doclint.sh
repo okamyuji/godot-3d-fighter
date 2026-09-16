@@ -21,7 +21,7 @@ def walk(t):
 files = sorted({f for t in targets for f in walk(t)})
 
 ADR_SECTIONS = ["## 状態", "## 背景", "## 決定", "## 影響"]
-BANNED = ["TBD", "TODO", "未定", "後で検討", "対応予定", "確信度", "推奨は", "不変条件", "帰結", "デシンク"]
+BANNED = [r"TBD", r"TODO", r"未定(?!義)", r"後で検討", r"対応予定", r"確信度", r"推奨は", r"不変条件", r"帰結", r"デシンク"]
 JA = "぀-ヿ一-鿿"
 # 和文と英数字の間の半角スペース。ラベルや見出しも例外にしない。
 BOUNDARY = re.compile(rf"[{JA}] [A-Za-z0-9`]|[A-Za-z0-9`] [{JA}]")
@@ -50,7 +50,7 @@ def check(path):
         if not is_doc:
             continue
         for b in BANNED:
-            if b in plain:
+            if re.search(b, plain):
                 findings.append(("High", rel, n, f"先送り語または過程語 '{b}'"))
         if re.search(r"[:：]\s*$", plain) and not plain.lstrip().startswith(("|", "-", "*", "#")):
             findings.append(("Medium", rel, n, "文末がコロンで終わる"))

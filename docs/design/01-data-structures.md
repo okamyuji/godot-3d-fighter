@@ -64,7 +64,7 @@ godot-3d-fighter/
 
 ## 型の定義
 
-すべての型は`namespace Godot3dFighter.Core.*`に置きます。構造体はすべて`readonly`または`[StructLayout(LayoutKind.Sequential, Pack = 1)]`で、参照型の項目を持たない形です。
+すべての型は`namespace Godot3dFighter.Core.*`に置きます。`Math/`、`Input/`、`State/`の構造体は`readonly`または`[StructLayout(LayoutKind.Sequential, Pack = 1)]`で、参照型の項目を持たない形です。`Data/`の型と`MatchContext`はクラスで、文字列と配列を持ちます。
 
 ### Fix16（ADR-0001）
 
@@ -86,7 +86,7 @@ public readonly record struct Fix16(int Raw)
 }
 ```
 
-乗算は負の無限大方向、除算はゼロ方向へ丸まります。加減算と`FromInt`は`checked`で、あふれは`OverflowException`です。
+乗算は負の無限大方向、除算はゼロ方向へ丸まります。加減算と`FromInt`は`checked`で、あふれは`OverflowException`です。乗算と除算の結果を`int`へ戻すキャストも`checked`で、収まらなければ同じ例外になります。
 
 ### Vec3Fix（ADR-0002）
 
@@ -94,7 +94,7 @@ public readonly record struct Fix16(int Raw)
 
 ### Angle16とTrig（ADR-0014）
 
-`Angle16`は`ushort`を包む`readonly record struct`です。加減算は`ushort`の桁あふれをそのまま使う（`unchecked`）ので、1周が65536になります。`Trig.Sin(Angle16)`と`Trig.Cos(Angle16)`は`Fix16`を返し、`Trig.Atan2(Fix16 y, Fix16 x)`は`Angle16`を返す関数です。`Trig.Rotate(Vec3Fix local, Angle16 facing)`は、キャラ座標（前が+X）の点をワールド座標の向きへ回します。
+`Angle16`は`ushort`を包む`readonly record struct`です。加減算は`ushort`の桁あふれをそのまま使う（`unchecked`）ので、1周が65536になります。`Trig.Sin(Angle16)`と`Trig.Cos(Angle16)`は`Fix16`を返し、`Trig.Atan2(Fix16 y, Fix16 x)`は`Angle16`を返す関数です。`Trig.Rotate(Vec3Fix local, Angle16 facing)`は、キャラ座標（前が+X、右が+Z、上が+Y）の点をワールド座標の向きへ回します。
 
 ```text
 world.X = local.X * cos(θ) + local.Z * sin(θ)
@@ -154,11 +154,11 @@ public struct InputBuffer
 |---|---|---|---|
 | `Players` | `PlayerState`×2（`[InlineArray(2)]`） | 208 | 2人分の状態 |
 | `FrameNumber` | `uint` | 4 | 試合開始からのフレーム数 |
-| `RngState` | `uint` | 4 | xorshift32の状態。0は禁止 |
+| `RngState` | `uint` | 4 | xorshift32の状態。初期値は`Rules.Seed`で、0にはならない |
 | `RoundTimerFrames` | `ushort` | 2 | ラウンドの残りフレーム |
 | `PhaseFrames` | `ushort` | 2 | 現在の段階の経過フレーム |
-| `RoundNumber` | `byte` | 1 | 1始まり |
 | `RoundWins` | `byte`×2（`[InlineArray(2)]`） | 2 | 各プレイヤーの先取数 |
+| `RoundNumber` | `byte` | 1 | 1始まり |
 | `Phase` | `RoundPhase` | 1 | `Intro`、`Fight`、`RoundEnd`、`MatchEnd` |
 
 合計は224バイトです。`Unsafe.SizeOf<MatchState>()`がこの値と一致することをテストで確かめます（C-08）。
@@ -237,7 +237,7 @@ JSONの例（`data/characters/box.json`の一部）は次のとおりです。
 
 ### StageDataとRules
 
-`StageData`は`RingRadius`（`Fix16`）と`StartDistance`（`Fix16`、開始時の2人の距離）を持ちます。`Rules`は`RoundTimeSeconds`（`ushort`）、`RoundsToWin`（`byte`）、`InitialHealth`（`int`）を持ちます。
+`StageData`は`RingRadius`（`Fix16`）と`StartDistance`（`Fix16`、開始時の2人の距離）を持ちます。`Rules`は`RoundTimeSeconds`（`ushort`）、`RoundsToWin`（`byte`）、`InitialHealth`（`int`）、`RiseFrames`（`ushort`、起き上がりのフレーム数）、`Seed`（`uint`、既定1、0は読み込み時に例外）を持ちます。
 
 ## 状態遷移
 
@@ -253,7 +253,7 @@ JSONの例（`data/characters/box.json`の一部）は次のとおりです。
 | `Blockstun` | `Guard`中に攻撃を受けた | `StunFrames`がゼロ |
 | `Hitstun` | ガード不成立で攻撃を受けた（`Knockdown`が偽） | `StunFrames`がゼロ |
 | `Down` | `Knockdown`が真の攻撃を受けた。リングアウト | `StunFrames`がゼロで`Rise`へ |
-| `Rise` | `Down`から起き上がり | 起き上がりフレーム（`Rules`で定める）が経過 |
+| `Rise` | `Down`から起き上がり | `Rules.RiseFrames`が経過 |
 | `Dead` | 体力がゼロ以下 | ラウンド終了まで出ない |
 
 ガードの成否は、攻撃の`Height`と防御側の状態で決めます。`Guard`は`High`と`Mid`を防ぎ、`Low`は防げません。しゃがみガードは箱同士の段階では扱いません。
@@ -274,7 +274,7 @@ JSONの例（`data/characters/box.json`の一部）は次のとおりです。
 10. 決着の判定 体力ゼロ以下、リングアウト（`RingOut.IsOut`）、`RoundTimerFrames`ゼロの順で調べ、該当すれば`Phase`を`RoundEnd`にし、勝者の`RoundWins`を増やします。時間切れで体力が同じなら両者に加えます。`RoundsToWin`に達したら`MatchEnd`です。
 11. フレーム番号の更新 フレーム番号（`FrameNumber`）とラウンドの残り（`RoundTimerFrames`）を更新します。
 
-`StateHash.Compute(in MatchState)`は`MemoryMarshal.AsBytes`で得たバイト列のFNV-1a（64bit）を返します。`Step`は呼びません。
+`StateHash.Compute(in MatchState)`は`MemoryMarshal.AsBytes`で得たバイト列のFNV-1a（64bit）を返します。乗算は`unchecked`です。`Step`は呼びません。
 
 ## 常に成り立つ条件とテストの対応
 
@@ -301,7 +301,7 @@ JSONの例（`data/characters/box.json`の一部）は次のとおりです。
 
 各項目は「テストを先に書き、失敗を確かめてから実装する」単位です。1項目ごとにコミットします。
 
-1. 土台 共通設定（`Directory.Build.props`、`.editorconfig`）、`Core.csproj`、`Core.Tests.csproj`、`BannedSymbols.txt`、直下の`csproj`の`Compile Remove`を作り、空のテストが通る状態にします。
+1. 土台 共通設定（`Directory.Build.props`、`.editorconfig`）、`Core.csproj`、`Core.Tests.csproj`、`BannedSymbols.txt`、直下の`csproj`の`Compile Remove`、`.githooks/pre-commit`、`.config/dotnet-tools.json`、`CLAUDE.md`を作り、空のテストが通る状態にします。
 2. 固定小数点 型`Fix16`を実装し、C-01とC-07を確かめます。
 3. ベクトル 型`Vec3Fix`と補助関数`IntMath`を実装します。
 4. 三角関数 生成ツール`tools/GenTables`で`SinTable.g.cs`と`AtanTable.g.cs`を生成し、`Trig`を実装してC-15とC-16を確かめます。

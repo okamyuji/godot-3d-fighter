@@ -20,10 +20,10 @@
 
 - 試合状態は`MatchState`（`struct`）です。参照型の項目を持たず、配列は`[InlineArray]`の固定長です。
 - `MatchState`と内包する`PlayerState`は`[StructLayout(LayoutKind.Sequential, Pack = 1)]`とし、項目をサイズの大きい順に並べます。詰め物のバイトを作らないためです。
-- 同期ずれの検出は`MemoryMarshal.AsBytes`で得たバイト列のFNV-1a（64bit）で行います。
+- 同期ずれの検出は`MemoryMarshal.AsBytes`で得たバイト列のFNV-1a（64bit）で行います。ハッシュの乗算は桁あふれを前提とするため`unchecked`で書きます。
 - Coreの入口は`MatchSimulator.Step(in MatchState state, InputFrame p1, InputFrame p2, in MatchContext ctx)`で、新しい`MatchState`を返します。引数の状態は書き換えません。
 - 履歴（過去のフレームの状態）はCoreの外が持ちます。Coreは現在の状態しか持ちません。
-- `System.Random`はCoreで使いません（ADR-0009）。乱数が要る時のため、`MatchState`に`uint RngState`を置き、xorshift32で更新します。乱数の状態も試合状態の一部です。
+- `System.Random`はCoreで使いません（ADR-0009）。乱数が要る時のため、`MatchState`に`uint RngState`を置き、xorshift32で更新します。初期値は`Rules.Seed`（既定1）で、0にはしません。乱数の状態も試合状態の一部です。
 
 ## 影響
 
