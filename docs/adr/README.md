@@ -5,11 +5,11 @@
 | 番号 | 題名 | 常に成り立つ条件 |
 |---|---|---|
 | [ADR-0001](0001-fixed-point-q16-16.md) | 数値表現は`int`のQ16.16固定小数点にする | C-01 |
-| [ADR-0002](0002-coordinates-and-ring.md) | 座標系はGodotに合わせ、リングは円にする | C-02、C-03 |
+| [ADR-0002](0002-coordinates-and-ring.md) | 座標系はGodotに合わせ、リングの形と縁の種類はステージごとに決める | C-02、C-03、C-34 |
 | [ADR-0003](0003-input-encoding-and-buffer.md) | 入力は1バイトに符号化し、64フレーム分を状態の中に持つ | C-04、C-05 |
 | [ADR-0004](0004-move-data-json.md) | 技データはJSONで持ち、数値は実数で書く | C-06、C-07 |
 | [ADR-0005](0005-match-state-struct.md) | 試合状態は参照を含まない構造体にし、履歴は呼び出し側が持つ | C-08、C-09 |
-| [ADR-0006](0006-hit-spheres-from-data.md) | 判定は球で表し、位置は技データに持つ | C-10、C-11 |
+| [ADR-0006](0006-hit-capsules-from-data.md) | 判定はカプセルで表し、形と位置は技データに持つ | C-10、C-11 |
 | [ADR-0007](0007-target-framework-and-layout.md) | 対象フレームワークはnet10.0にし、プロジェクトをGame、Core、テストに分ける | C-12 |
 | [ADR-0008](0008-test-frameworks.md) | ユニットテストはxUnit v3、主要導線の走破は自前の画面なし実行で行う | C-13 |
 | [ADR-0009](0009-static-analysis.md) | 静的解析はSDK同梱アナライザの全規則と禁止シンボルで行う | C-14 |

@@ -73,7 +73,7 @@ digit = 5 + 3 * v + h
 4. 状態の経過 止まっていないプレイヤーの`StateFrame`を増やし（上限65535）、`StunFrames`が1以上なら1減らします。状態の表の「終わる条件」、起き上がりの入力、投げ抜けの入力、投げの終わりの処理を行います。
 5. 行動の判断 行動を受け付けるプレイヤーについて、ADR-0017の順で行動を選びます。
 6. 移動 状態から`Velocity`を決め、`Position`に足して、各成分を`±PositionLimitMeters`に収めます。向きは`Trig.Direction`で求めます。前歩き、後ろ歩き、ダッシュは`Facing`の前後、横移動と転がりと受け身はADR-0016の向き、`Attack`は経過フレームを含む`Motion`の`ForwardPerFrame`だけ`Facing`の前へ動きます。ほかの状態では`Velocity`は0です。
-7. 体の押し合い 両者をADR-0015の手順で押し出します。どちらかが`Throwing`か`Thrown`なら行いません。押し出した後も座標を`±PositionLimitMeters`に収めます。
+7. 体の押し合いと壁 両者をADR-0015の手順で押し出します。どちらかが`Throwing`か`Thrown`なら押し合いは行いません。続けて、ADR-0002の手順で壁の縁から押し戻し、座標を`±PositionLimitMeters`に収めます。
 8. 向きの更新 対象はADR-0015に挙げた状態のプレイヤーだけで、相手の足元への角度を`Trig.Atan2(-dz, dx)`で求めて`Facing`にします。2人の水平距離が0なら変えません。
 9. 画面の左右 画面の右方向（`CameraYaw`）を`CameraSide`で更新します。
 10. 投げの判定 状態が`Attack`で投げの技、`StateFrame`が`Startup`、止まっていないプレイヤーについて、ADR-0019の条件で投げの候補を作ります。
@@ -83,19 +83,19 @@ digit = 5 + 3 * v + h
 
 ### 打撃の判定と適用（ADR-0006、ADR-0018、ADR-0020、ADR-0021）
 
-攻撃する側は、`Attack`で技の`Kind`が`Strike`か`RisingAttack`、`HasHitThisMove`が消えていて、`StateFrame`を含む判定区間に攻撃判定があるプレイヤーです。攻撃判定のワールド座標は、足元の座標に`Trig.Rotate(Center, Facing)`を足した点です。
+攻撃する側は、`Attack`で技の`Kind`が`Strike`か`RisingAttack`、`HasHitThisMove`が消えていて、`StateFrame`を含む判定区間に攻撃判定があるプレイヤーです。攻撃判定とやられ判定のどちらも、カプセルの両端のワールド座標は、足元の座標に`Trig.Rotate(端点, Facing)`を足して求めます。
 
 受ける側のやられ判定は、状態で次のように決まります。
 
 | 受ける側の状態 | やられ判定 |
 |---|---|
-| `Down`、`RollIn`、`RollOut` | `DownHurtSpheres`。技の`HitsDown`が真で、`DownHitTaken`が消えている時だけ判定する |
+| `Down`、`RollIn`、`RollOut` | `DownHurtCapsules`。技の`HitsDown`が真で、`DownHitTaken`が消えている時だけ判定する |
 | `Attack` | 判定区間の`Hurt`。空なら技の`Posture`に合う立ちかしゃがみの判定 |
-| `Crouch`、`CrouchGuard`、`CrouchBlockstun` | `CrouchHurtSpheres` |
+| `Crouch`、`CrouchGuard`、`CrouchBlockstun` | `CrouchHurtCapsules` |
 | `Throwing`、`Thrown`、`Dead` | 無し（当たらない） |
-| それ以外 | `StandHurtSpheres` |
+| それ以外 | `StandHurtCapsules` |
 
-球が1組でも重なれば、ADR-0018の表で結果を決めます。受ける側が`Attack`で`StateFrame`が`Startup + Active`未満なら、命中はカウンターヒットです。2人分の結果を、判定の前の状態から求めてから、次のとおり適用します。
+カプセルが1組でも重なれば、ADR-0018の表で結果を決めます。受ける側が`Attack`で`StateFrame`が`Startup + Active`未満なら、命中はカウンターヒットです。2人分の結果を、判定の前の状態から求めてから、次のとおり適用します。
 
 | 結果 | 受けた側 | 攻撃した側 |
 |---|---|---|
@@ -106,15 +106,41 @@ digit = 5 + 3 * v + h
 
 ガード、命中、カウンターヒットのいずれかが起きたら、2人の`HitstopFrames`を、現在の値と、このフレームに当たった技の`Hitstop`の最大値にします。適用の後、体力が0以下のプレイヤーは`Dead`です。
 
+### カプセルの重なり（ADR-0006）
+
+`Collision.Overlaps`は、ワールド座標の2つのカプセルについて次の手順で重なりを判定します。座標は`Raw`の整数で、積と商は`Int128`で計算します。`/`はゼロ方向へ丸める整数除算、`>>`は負の無限大方向へ丸める算術シフトです。
+
+```text
+d1 = Q1 - P1, d2 = Q2 - P2, w = P1 - P2
+a = d1・d1, e = d2・d2, f = d2・w
+ONE = 65536
+if a == 0 and e == 0: s = 0, t = 0
+elif a == 0:          s = 0, t = clamp((f << 16) / e, 0, ONE)
+else:
+  c = d1・w
+  if e == 0:          t = 0, s = clamp((-c << 16) / a, 0, ONE)
+  else:
+    b = d1・d2
+    denom = a * e - b * b
+    s = (denom != 0) ? clamp(((b * f - c * e) << 16) / denom, 0, ONE) : 0
+    t = (b * s + (f << 16)) / e
+    if t < 0:         t = 0,   s = clamp((-c << 16) / a, 0, ONE)
+    elif t > ONE:     t = ONE, s = clamp(((b - c) << 16) / a, 0, ONE)
+C1 = P1 + ((d1 * s) >> 16), C2 = P2 + ((d2 * t) >> 16)
+重なり = |C1 - C2|^2 <= (r1 + r2)^2
+```
+
+P1とQ1、P2とQ2はそれぞれのカプセルの両端、r1とr2は半径です。
+
 ### 投げの入力と終わり（ADR-0019）
 
 投げが成立したフレームに、投げられた側の入力履歴の直近`BufferFrames`フレームから、Gを含むボタンが押された最も古いフレームを探します。見つかればそのフレームの入力を、見つからなければ`Thrown`の間に最初にGを含むボタンが押されたフレームの入力を、投げ抜けの入力とします。判定は1回だけで、`PlayerFlags.ThrowEscapeTried`を付けた後の入力は対象外です。入力が投げのコマンドと一致すれば、2人を`ThrowEscape`にして、水平距離が`ThrowEscapeDistance`になるよう半分ずつ離します。
 
-`Throwing`の`StateFrame`が`ThrowEscapeFrames`に達したら、投げられた側の体力から`Damage`を引き、位置を「投げた側の足元 + `Trig.Rotate(ThrowEndOffset, 投げた側のFacing)`」にし、`Facing`を投げた側へ向けます。`Knockdown`なら`Down`、違えば`Hitstun`です。`LastHitKind`は`Thrown`で、体力が0以下なら`Dead`です。投げた側は`Attack`のまま`StateFrame`を`Startup + Active`にして、硬直に入ります。
+`Throwing`の`StateFrame`が`ThrowEscapeFrames`に達したら、投げられた側の体力から`Damage`を引き、位置を「投げた側の足元 + `Trig.Rotate(ThrowEndOffset, 投げた側のFacing)`」にして壁の縁から押し戻し、`Facing`を投げた側へ向けます。`Knockdown`なら`Down`、違えば`Hitstun`です。`LastHitKind`は`Thrown`で、体力が0以下なら`Dead`です。投げた側は`Attack`のまま`StateFrame`を`Startup + Active`にして、硬直に入ります。
 
 ## 決着（ADR-0022）
 
-`RingOut.IsOut(position, radius)`は、足元のXとZについて`x*x + z*z > r*r`を`long`で判定します。決着の判定は次の順です。
+`RingBounds.IsOut(position, stage)`は、足元がリングアウトの縁の外側にあるかをADR-0002の式で判定します。`RingBounds.PushInsideWalls(position, bodyRadius, stage)`は、壁の縁からの押し戻しを行います。決着の判定は次の順です。
 
 1. 体力が0以下か、リングの外のプレイヤーを負けとします。
 2. 負けがいれば、負けでないプレイヤーの勝ち数を1増やします。2人とも負けなら2人の勝ち数を1ずつ増やします。

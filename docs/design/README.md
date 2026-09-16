@@ -14,14 +14,14 @@
 |---|---|---|---|
 | C-01 | `Fix16`の全演算は整数演算だけで閉じ、同じ入力に同じ結果を返す | 0001 | `Fix16Tests`。乗算の負数の丸め、除算のゼロ方向の丸め、加算とキャストのあふれ、0除算 |
 | C-02 | 座標成分の絶対値は1024m以下 | 0002 | `PositionClampTests` |
-| C-03 | リングアウトは距離の二乗の比較で決まり、半径ちょうどはリング内 | 0002 | `RingOutTests`。半径ちょうどと`Raw`で1外側 |
+| C-03 | リングアウトの縁の外側へ足元が出た時だけリングアウトで、縁の上と壁の縁ではならない | 0002 | `RingOutTests`。円、正方形、正八角形の縁の上と`Raw`で1外側 |
 | C-04 | Coreに入る`InputFrame`は正規化済みで、ビット7は0 | 0003 | `InputFrameTests` |
 | C-05 | `InputBuffer`は直近64フレームだけを保持する | 0003 | `InputBufferTests`。65回`Push`して`At(63)`と`At(64)` |
 | C-06 | 同じJSONから同じ内容のデータ。未知と欠損の項目は例外 | 0004 | `GameDataLoaderTests`。読み込んだ結果を項目ごとに比べる |
 | C-07 | `Fix16.FromDecimal`は0.5をゼロから遠い方へ丸める | 0004 | `Fix16Tests` |
 | C-08 | `MatchState`に詰め物のバイトが無い（230バイト） | 0005 | `MatchStateLayoutTests` |
 | C-09 | 同じ状態と入力から`Step`は同じ状態と同じハッシュを返す | 0005 | `MatchSimulatorTests`。同じ入力列を2回流して比べる |
-| C-10 | 球の重なりは距離の二乗の比較で決まり、接触は重なり | 0006 | `HitSphereTests` |
+| C-10 | カプセルの重なりは線分間の最短距離と半径の和で決まり、接触は重なりで、両端が同じなら球と同じ結果 | 0006 | `HitCapsuleTests`。平行、交差、端点どうし、長さ0の組み合わせ |
 | C-11 | 1区間の攻撃判定4個、やられ判定8個を超える区間と、範囲の重なる区間は読み込み時に例外 | 0006 | `GameDataLoaderTests` |
 | C-12 | `Core`はGodotSharpを参照しない | 0007 | `AssemblyReferenceTests` |
 | C-13 | `flows.json`の全導線に対応するシナリオがある | 0008 | `E2eRunner --check-flows` |
@@ -45,6 +45,7 @@
 | C-31 | 負けの人数と残り時間の組み合わせごとに、勝ち数の増え方が決まる | 0022 | `RoundResolutionTests` |
 | C-32 | 勝ち数が同数なら試合は続き、`MaxRounds`で引き分けになる | 0022 | `MatchEndTests` |
 | C-33 | トレーニングでは残り時間が減らず、ラウンドが終わらない | 0022 | `TrainingRulesTests` |
+| C-34 | 壁の縁では、押し戻しの後の足元が`Size - BodyRadius`の線から`Raw`で2以内の内側にある | 0002 | `WallTests` |
 
 ## 実装の順序
 
@@ -55,7 +56,7 @@
 3. ベクトルと整数平方根 型`Vec3Fix`と`IntMath`を実装します。
 4. 三角関数 生成ツール`tools/GenTables`で表を生成し、`Trig`を実装してC-15とC-16を確かめます。
 5. 入力 型`InputFrame`と`InputBuffer`を実装し、C-04とC-05を確かめます。
-6. 判定の球とリング 型`HitSphere`、`Collision`、`RingOut`を実装し、C-03とC-10を確かめます。
+6. 判定とリング 型`HitCapsule`、`Collision`、`RingBounds`を実装し、C-03、C-10、C-34を確かめます。
 7. 技データ 読み込み`GameDataLoader`と`data/`の既定のファイルを作り、C-06とC-11を確かめます。
 8. 試合状態 型`PlayerState`、`MatchState`、`MatchContext`、`StateHash`を実装し、C-08を確かめます。
 9. コマンド判定 判定器`CommandParser`と行動の判断`ActionSelector`を実装し、C-21、C-22、C-23を確かめます。

@@ -17,7 +17,7 @@ public interface IE2eScreen
 | 画面 | シーン | 表示する情報 | 操作と遷移 |
 |---|---|---|---|
 | `Title` | `scenes/Title.tscn` | タイトル、「対戦」「トレーニング」の選択肢 | `Versus`で対戦のキャラ選択へ、`Training`でトレーニングのキャラ選択へ |
-| `CharacterSelect` | `scenes/CharacterSelect.tscn` | 2人の選択中のキャラ名、決定済みかどうか | `ConfirmP1`と`ConfirmP2`が両方そろうと試合かトレーニングへ、`Back`でタイトルへ |
+| `CharacterSelect` | `scenes/CharacterSelect.tscn` | 2人の選択中のキャラ名、決定済みかどうか、選択中のステージ名 | `NextStage`でステージを`data/stages/`のファイル名の順に切り替え、`ConfirmP1`と`ConfirmP2`が両方そろうと試合かトレーニングへ、`Back`でタイトルへ |
 | `Match` | `scenes/Match.tscn` | 体力ゲージ、残り時間（秒、切り上げ）、勝ち数、ラウンド番号、決着の理由（KO、RING OUT、TIME UP）、カウンターヒットの表示 | 試合が`MatchEnd`になり`RoundEndFrames`が経つとリザルトへ |
 | `Result` | `scenes/Result.tscn` | 勝者か引き分け、各ラウンドの決着の理由と勝者 | `Confirm`でタイトルへ |
 | `Training` | `scenes/Training.tscn` | `Match`の表示に加え、フレーム差、2人の状態名と`StateFrame`、相手の動作の設定 | `ResetPositions`、`DummyStand`、`DummyCrouch`、`DummyGuardAll`、`Exit`（タイトルへ） |
@@ -111,4 +111,4 @@ godot --headless --path . -- --check-flows
 |---|---|
 | `rules-e2e.json` | `data/rules.json`から、`InitialHealth`を24、`RoundsToWin`を1、`MaxRounds`を1、`IntroFrames`と`RoundEndFrames`を30にした規則 |
 | `rules-timeup.json` | `rules-e2e.json`から、`RoundTimeSeconds`を3にした規則 |
-| `stage-e2e.json` | `RingRadius`を2.0、`StartDistance`を2.0にしたステージ |
+| `stage-e2e.json` | 形を円、`Size`を2.0、縁をリングアウト、`StartDistance`を2.0にしたステージ |
