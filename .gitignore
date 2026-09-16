@@ -1,0 +1,20 @@
+# Godot
+.godot/
+*.import
+export_presets.cfg
+
+# .NET
+bin/
+obj/
+*.user
+TestResults/
+StrykerOutput/
+coverage/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Intermediate design output
+docs/superpowers/
