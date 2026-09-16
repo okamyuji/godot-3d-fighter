@@ -21,7 +21,7 @@ def walk(t):
 files = sorted({f for t in targets for f in walk(t)})
 
 ADR_SECTIONS = ["## 状態", "## 背景", "## 決定", "## 影響"]
-BANNED = [r"TBD", r"TODO", r"未定(?!義)", r"後で検討", r"対応予定", r"確信度", r"推奨は", r"不変条件", r"帰結", r"デシンク"]
+BANNED = [r"TBD", r"TODO", r"未定(?!義)", r"後で検討", r"対応予定", r"確信度", r"推奨は", r"不変条件", r"帰結", r"デシンク", r"改訂", r"置き換えます", r"[（(]\d{4}-\d{2}-\d{2}[）)]"]
 # 和文はひらがな、カタカナ、漢字に加え、全角の句読点、括弧、英数記号を含める
 JA = "　-ヿ一-鿿＀-￯"
 BOUNDARY = re.compile(rf"[{JA}] [A-Za-z0-9`]|[A-Za-z0-9`] [{JA}]")
@@ -55,7 +55,7 @@ def check(path):
             continue
         for b in BANNED:
             if re.search(b, plain):
-                findings.append(("High", rel, n, f"先送り語または過程語 '{b}'"))
+                findings.append(("High", rel, n, f"先送り語、過程語、履歴の記述 '{b}'"))
         if re.search(r"[:：]\s*$", plain) and not plain.lstrip().startswith(("|", "-", "*", "#")):
             findings.append(("Medium", rel, n, "文末がコロンで終わる"))
 

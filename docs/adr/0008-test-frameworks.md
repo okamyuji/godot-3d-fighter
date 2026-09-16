@@ -2,7 +2,7 @@
 
 ## 状態
 
-採用（2026-09-17）
+採用
 
 ## 背景
 
@@ -25,7 +25,7 @@
 ## 決定
 
 - ユニットテストはxUnit v3 4.0.1で、VSTestモードで動かします。参照は`xunit.v3` 4.0.1、`xunit.runner.visualstudio` 4.0.0、`Microsoft.NET.Test.Sdk` 18.10.1、`coverlet.msbuild` 10.0.1です。
-- 主要導線の走破はGame側の`E2eRunner`が行います。起動は`godot --headless --path . -- --e2e tests/e2e/scenarios/<name>.json`で、シナリオの各フレームの入力をCoreの入力境界に注入し、期待する画面と結果に達したら終了コード0、達しなければ1で終了します。
+- 主要導線の走破はGame側の`E2eRunner`が行います。起動は`godot --headless --fixed-fps 60 --path . -- --e2e tests/e2e/scenarios/<name>.json`で、シナリオの各フレームの入力をCoreの入力境界に注入し、期待する画面と結果に達したら終了コード0、達しなければ1で終了します。
 - 導線の一覧は`tests/e2e/flows.json`に持ちます。各導線には1つ以上のシナリオが対応し、`E2eRunner --check-flows`は対応するシナリオが無い導線があれば終了コード1を返します。
 - 主要導線は次のとおりです。
 
@@ -38,6 +38,8 @@
 | F-05 | 時間切れでラウンドが決着する |
 | F-06 | 試合終了からリザルトを経てタイトルへ戻る |
 | F-07 | トレーニングモードを開始し、終了してタイトルへ戻る |
+
+各導線が通る画面と操作はADR-0023で定めます。
 
 ## 影響
 

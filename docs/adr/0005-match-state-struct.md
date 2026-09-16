@@ -2,7 +2,7 @@
 
 ## 状態
 
-採用（2026-09-17）
+採用
 
 ## 背景
 
@@ -19,7 +19,7 @@
 ## 決定
 
 - 試合状態は`MatchState`（`struct`）です。参照型の項目を持たず、配列は`[InlineArray]`の固定長です。
-- `MatchState`と内包する`PlayerState`は`[StructLayout(LayoutKind.Sequential, Pack = 1)]`とし、項目をサイズの大きい順に並べます。詰め物のバイトを作らないためです。列挙型の項目（`StateKind`、`RoundPhase`）は基底型を`byte`にします。基底型を省くと`int`になり、`MatchState`は224バイトから227バイトに変わります。
+- `MatchState`と内包する`PlayerState`は`[StructLayout(LayoutKind.Sequential, Pack = 1)]`とし、項目をサイズの大きい順に並べます。詰め物のバイトを作らないためです。列挙型の項目（`StateKind`、`RoundPhase`）は基底型を`byte`にします。基底型を省くと`int`（4バイト）になり、設計書のサイズと合わなくなります。
 - 同期ずれの検出は`MemoryMarshal.AsBytes`で得たバイト列のFNV-1a（64bit）で行います。ハッシュの乗算は桁あふれを前提とするため`unchecked`で書きます。
 - Coreの入口は`MatchSimulator.Step(in MatchState state, InputFrame p1, InputFrame p2, MatchContext ctx)`で、新しい`MatchState`を返します。引数の状態は書き換えません。
 - 履歴（過去のフレームの状態）はCoreの外が持ちます。Coreは現在の状態しか持ちません。
