@@ -1,0 +1,19 @@
+{
+  "roundTimeSeconds": 60,
+  "roundsToWin": 1,
+  "maxRounds": 1,
+  "initialHealth": 24,
+  "introFrames": 30,
+  "roundEndFrames": 30,
+  "techFrames": 6,
+  "techRecoveryFrames": 20,
+  "downMinFrames": 20,
+  "downMaxFrames": 60,
+  "riseFrames": 24,
+  "throwEscapeFrames": 10,
+  "throwEscapeRecoveryFrames": 20,
+  "throwEscapeDistance": 1.2,
+  "wallStunFrames": 40,
+  "seed": 1,
+  "training": false
+}

@@ -1,0 +1,6 @@
+{
+  "flow": "F-01",
+  "steps": [
+    { "expectScreen": "Title", "withinFrames": 120 }
+  ]
+}

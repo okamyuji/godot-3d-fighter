@@ -1,0 +1,7 @@
+{
+  "name": "stage-e2e",
+  "shape": "Circle",
+  "size": 2.0,
+  "edges": ["RingOut"],
+  "startDistance": 2.0
+}

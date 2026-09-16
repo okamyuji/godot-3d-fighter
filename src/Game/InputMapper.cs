@@ -6,8 +6,18 @@ namespace Godot3dFighter.Game;
 /// <summary>GodotのInputMapからプレイヤーごとの正規化済みInputFrameを作る（03-screens-and-e2e.md）。</summary>
 public static class InputMapper
 {
+    private static readonly InputFrame?[] Overrides = new InputFrame?[3];
+
+    /// <summary>E2eRunnerがシナリオの入力をキーボードの代わりに与えるための上書き。nullで解除する。</summary>
+    public static void SetOverride(int playerNumber, InputFrame? frame) => Overrides[playerNumber] = frame;
+
     public static InputFrame Read(int playerNumber)
     {
+        if (Overrides[playerNumber] is { } overridden)
+        {
+            return overridden;
+        }
+
         var prefix = $"p{playerNumber}_";
         byte bits = 0;
 

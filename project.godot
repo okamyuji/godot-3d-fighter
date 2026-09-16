@@ -13,6 +13,7 @@ config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 [autoload]
 
 GameState="*res://src/Game/GameState.cs"
+E2eRunner="*res://src/Game/E2e/E2eRunner.cs"
 
 [dotnet]
 

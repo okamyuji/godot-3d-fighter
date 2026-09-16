@@ -1,0 +1,11 @@
+{
+  "flow": "F-02",
+  "steps": [
+    { "expectScreen": "Title", "withinFrames": 120 },
+    { "action": "Versus" },
+    { "expectScreen": "CharacterSelect", "withinFrames": 60 },
+    { "action": "ConfirmP1" },
+    { "action": "ConfirmP2" },
+    { "expectPhase": "Fight", "withinFrames": 120 }
+  ]
+}

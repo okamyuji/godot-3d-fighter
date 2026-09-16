@@ -1,0 +1,15 @@
+{
+  "flow": "F-04",
+  "rules": "tests/e2e/data/rules-e2e.json",
+  "stage": "tests/e2e/data/stage-e2e.json",
+  "steps": [
+    { "expectScreen": "Title", "withinFrames": 120 },
+    { "action": "Versus" },
+    { "expectScreen": "CharacterSelect", "withinFrames": 60 },
+    { "action": "ConfirmP1" },
+    { "action": "ConfirmP2" },
+    { "expectPhase": "Fight", "withinFrames": 120 },
+    { "frames": 40, "p1": "5", "p2": "6" },
+    { "expectRoundEnd": { "reason": "RingOut", "winners": [1] }, "withinFrames": 40 }
+  ]
+}

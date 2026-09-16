@@ -27,6 +27,11 @@ dotnet_diagnostic.CA1307.severity = none
 dotnet_diagnostic.CA2000.severity = none
 dotnet_diagnostic.CA2213.severity = none
 
+[src/Game/E2e/*.cs]
+# CA1812: JsonSerializer.DeserializeがリフレクションでE2eScenario系DTOを生成するため、
+# 静的解析からは未使用に見える（03-screens-and-e2e.md）。
+dotnet_diagnostic.CA1812.severity = none
+
 [*.{json,yml,yaml}]
 indent_size = 2
 

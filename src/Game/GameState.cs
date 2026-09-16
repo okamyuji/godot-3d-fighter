@@ -25,6 +25,15 @@ public sealed partial class GameState : Node
 
     public bool IsTraining { get; set; }
 
+    /// <summary>E2eRunnerがシナリオの規則、ステージ、キャラを差し替えるための項目。nullなら既定を使う。</summary>
+    public string? RulesOverridePath { get; set; }
+
+    public string? StageOverridePath { get; set; }
+
+    public string? P1CharacterOverridePath { get; set; }
+
+    public string? P2CharacterOverridePath { get; set; }
+
     private readonly List<(RoundEndReason Reason, byte Winners)> _roundHistory = [];
 
     public IReadOnlyList<(RoundEndReason Reason, byte Winners)> RoundHistory => _roundHistory;
@@ -45,13 +54,14 @@ public sealed partial class GameState : Node
 
     public MatchContext LoadContext()
     {
-        var character = LoadCharacter("res://data/characters/box.json");
-        var stage = LoadStage(StageFiles[StageIndex]);
-        var rules = LoadRules(IsTraining ? "res://data/rules-training.json" : "res://data/rules.json");
+        var p1Character = LoadCharacter(P1CharacterOverridePath ?? "res://data/characters/box.json");
+        var p2Character = LoadCharacter(P2CharacterOverridePath ?? "res://data/characters/box.json");
+        var stage = LoadStage(StageOverridePath ?? StageFiles[StageIndex]);
+        var rules = LoadRules(RulesOverridePath ?? (IsTraining ? "res://data/rules-training.json" : "res://data/rules.json"));
 
         return new MatchContext
         {
-            Characters = [character, character],
+            Characters = [p1Character, p2Character],
             Stage = stage,
             Rules = rules,
         };

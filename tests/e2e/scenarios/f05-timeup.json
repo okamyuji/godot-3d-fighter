@@ -1,0 +1,14 @@
+{
+  "flow": "F-05",
+  "rules": "tests/e2e/data/rules-timeup.json",
+  "steps": [
+    { "expectScreen": "Title", "withinFrames": 120 },
+    { "action": "Versus" },
+    { "expectScreen": "CharacterSelect", "withinFrames": 60 },
+    { "action": "ConfirmP1" },
+    { "action": "ConfirmP2" },
+    { "expectPhase": "Fight", "withinFrames": 120 },
+    { "frames": 182, "p1": "5", "p2": "5" },
+    { "expectMatchEnd": { "winners": [] }, "withinFrames": 50 }
+  ]
+}

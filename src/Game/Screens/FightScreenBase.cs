@@ -7,7 +7,7 @@ using Godot3dFighter.Core.State;
 namespace Godot3dFighter.Game.Screens;
 
 /// <summary>試合とトレーニングで共通する、1物理フレームごとのMatchSimulator.Step呼び出しと箱の表示（03-screens-and-e2e.md）。</summary>
-public abstract partial class FightScreenBase : Node3D
+public abstract partial class FightScreenBase : Node3D, IE2eMatchState
 {
     private MeshInstance3D? _p1Box;
     private MeshInstance3D? _p2Box;
@@ -16,6 +16,12 @@ public abstract partial class FightScreenBase : Node3D
     protected MatchContext Context { get; private set; } = null!;
 
     protected MatchState State { get; set; }
+
+    public RoundPhase Phase => State.Phase;
+
+    public RoundEndReason LastRoundReason => State.LastRoundReason;
+
+    public byte LastRoundWinners => State.LastRoundWinners;
 
     public override void _Ready()
     {
