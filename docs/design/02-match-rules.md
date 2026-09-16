@@ -64,7 +64,7 @@
 
 `Down`に入る時に`PlayerFlags.DownHitTaken`と`PlayerFlags.TechQueued`を消し、入力履歴の直近`BufferFrames`フレーム以内にP+K+Gの同時押しの成立があれば`TechQueued`を付けます。
 
-受け身の入力は、止まっているフレームも含めて`Down`の間の毎フレーム見ます。そのフレームにP+K+Gの同時押しが成立し、`StateFrame`が`TechFrames`以下なら`TechQueued`を付けます。止まっているフレームでは、手順3でこの確認だけを行います。
+受け身の入力は、止まっているフレームも含めて`Down`の間の毎フレーム見ます。そのフレームにP+K+Gの同時押しが成立し、`StateFrame`が`TechFrames`以下なら`TechQueued`を付けます。
 
 止まっていないフレームでは、手順4で`StateFrame`を増やし、上の確認をしてから、次の順で判定します。
 
