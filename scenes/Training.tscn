@@ -1,0 +1,40 @@
+[gd_scene load_steps=2 format=3 uid="uid://training_screen"]
+
+[ext_resource type="Script" path="res://src/Game/Screens/TrainingScreen.cs" id="1"]
+
+[node name="Training" type="Node3D"]
+script = ExtResource("1")
+
+[node name="Controls" type="CanvasLayer" parent="."]
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Controls"]
+offset_left = 16.0
+offset_top = 500.0
+offset_right = 600.0
+offset_bottom = 540.0
+
+[node name="ResetButton" type="Button" parent="Controls/HBoxContainer"]
+layout_mode = 2
+text = "位置リセット"
+
+[node name="StandButton" type="Button" parent="Controls/HBoxContainer"]
+layout_mode = 2
+text = "立つ"
+
+[node name="CrouchButton" type="Button" parent="Controls/HBoxContainer"]
+layout_mode = 2
+text = "しゃがむ"
+
+[node name="GuardAllButton" type="Button" parent="Controls/HBoxContainer"]
+layout_mode = 2
+text = "すべてガード"
+
+[node name="ExitButton" type="Button" parent="Controls/HBoxContainer"]
+layout_mode = 2
+text = "終了"
+
+[connection signal="pressed" from="Controls/HBoxContainer/ResetButton" to="." method="OnResetPositionsPressed"]
+[connection signal="pressed" from="Controls/HBoxContainer/StandButton" to="." method="OnDummyStandPressed"]
+[connection signal="pressed" from="Controls/HBoxContainer/CrouchButton" to="." method="OnDummyCrouchPressed"]
+[connection signal="pressed" from="Controls/HBoxContainer/GuardAllButton" to="." method="OnDummyGuardAllPressed"]
+[connection signal="pressed" from="Controls/HBoxContainer/ExitButton" to="." method="OnExitPressed"]

@@ -21,6 +21,12 @@ dotnet_diagnostic.CA1711.severity = none
 # CA1307: テストの固定文字列に対するstring.Replaceの文化非依存性は無関係なため抑制する。
 dotnet_diagnostic.CA1307.severity = none
 
+[src/Game/**/*.cs]
+# CA2000、CA2213: GodotのNodeはAddChildで親に渡した時点で寿命をシーンツリーが管理し、
+# 手動のDisposeやIDisposableパターンはGodotの流儀に合わない（03-screens-and-e2e.md）。
+dotnet_diagnostic.CA2000.severity = none
+dotnet_diagnostic.CA2213.severity = none
+
 [*.{json,yml,yaml}]
 indent_size = 2
 

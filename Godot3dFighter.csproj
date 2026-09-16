@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="src/**;tests/**;tools/**" />
+    <Compile Remove="src/Core/**;tests/**;tools/**" />
   </ItemGroup>
 
   <ItemGroup>

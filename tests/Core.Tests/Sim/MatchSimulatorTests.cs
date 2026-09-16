@@ -221,6 +221,23 @@ public sealed class MatchSimulatorTests
     }
 
     [Fact]
+    public void ResetPositionsRestoresHealthAndStartingPositions()
+    {
+        var context = Context();
+        var state = EnterFight(context);
+        state = state.WithPlayer(0, state.GetPlayer(0) with { Health = 10, State = StateKind.Hitstun });
+        state = state.WithPlayer(1, state.GetPlayer(1) with { Health = 5, State = StateKind.Down });
+
+        state = MatchSimulator.ResetPositions(state, context);
+
+        Assert.Equal(context.Rules.InitialHealth, state.GetPlayer(0).Health);
+        Assert.Equal(context.Rules.InitialHealth, state.GetPlayer(1).Health);
+        Assert.Equal(StateKind.Idle, state.GetPlayer(0).State);
+        Assert.Equal(StateKind.Idle, state.GetPlayer(1).State);
+        Assert.True(state.GetPlayer(0).Position.X.Raw < state.GetPlayer(1).Position.X.Raw);
+    }
+
+    [Fact]
     public void TrainingModeDoesNotEndTheRoundOnZeroHealth()
     {
         var context = Context();

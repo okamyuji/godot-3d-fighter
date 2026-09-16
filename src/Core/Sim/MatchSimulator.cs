@@ -193,8 +193,10 @@ public static class MatchSimulator
         return result;
     }
 
-    private static MatchState ResetPositions(in MatchState state, MatchContext context)
+    /// <summary>2人の位置、体力、状態を試合開始時に戻す（トレーニングの位置のリセットで使う）。</summary>
+    public static MatchState ResetPositions(in MatchState state, MatchContext context)
     {
+        ArgumentNullException.ThrowIfNull(context);
         var half = context.Stage.StartDistance / Fix16.FromInt(2);
         var result = state;
         result = result.WithPlayer(0, result.GetPlayer(0) with
