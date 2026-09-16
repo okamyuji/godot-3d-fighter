@@ -141,9 +141,9 @@ public struct InputBuffer
 
 | 型 | 値 |
 |---|---|
-| `StateKind` | `Idle`、`Walk`、`BackWalk`、`Crouch`、`Guard`、`CrouchGuard`、`SidestepIn`、`SidestepOut`、`Dash`、`Backdash`、`Attack`、`Throwing`、`Thrown`、`ThrowEscape`、`Blockstun`、`CrouchBlockstun`、`Hitstun`、`Down`、`Tech`、`RollIn`、`RollOut`、`Rise`、`Dead` |
-| `PlayerFlags` | `[Flags]`。`HasHitThisMove`=1、`DownHitTaken`=2、`ThrowEscapeTried`=4 |
-| `HitKind` | `None`、`Hit`、`CounterHit`、`Guarded`、`Thrown`、`ThrowEscaped` |
+| `StateKind` | `Idle`、`Walk`、`BackWalk`、`Crouch`、`Guard`、`CrouchGuard`、`SidestepIn`、`SidestepOut`、`Dash`、`Backdash`、`Attack`、`Throwing`、`Thrown`、`ThrowEscape`、`Blockstun`、`CrouchBlockstun`、`Hitstun`、`WallStun`、`Down`、`Tech`、`RollIn`、`RollOut`、`Rise`、`Dead` |
+| `PlayerFlags` | `[Flags]`。`HasHitThisMove`=1、`DownHitTaken`=2、`ThrowEscapeTried`=4、`WallHitTaken`=8 |
+| `HitKind` | `None`、`Hit`、`CounterHit`、`WallHit`、`CounterWallHit`、`Guarded`、`Thrown`、`ThrowEscaped` |
 | `RoundPhase` | `Intro`、`Fight`、`RoundEnd`、`MatchEnd` |
 | `RoundEndReason` | `None`、`KnockOut`、`RingOut`、`TimeUp` |
 | `MoveKind` | `Strike`、`Throw`、`RisingAttack` |
@@ -280,6 +280,7 @@ public struct InputBuffer
 | `ThrowEscapeFrames` | `ushort` | 10 | 投げ抜けを受け付けるフレーム数 |
 | `ThrowEscapeRecoveryFrames` | `ushort` | 20 | 投げ抜けの後の2人の硬直 |
 | `ThrowEscapeDistance` | `Fix16` | 1.2 | 投げ抜けの後の2人の水平距離（m） |
+| `WallStunFrames` | `ushort` | 40 | 壁やられの長さ（ADR-0024） |
 | `Seed` | `uint` | 1 | 乱数の初期値 |
 | `Training` | `bool` | false | トレーニングの規則を使うか（ADR-0022） |
 

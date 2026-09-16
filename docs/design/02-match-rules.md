@@ -31,6 +31,7 @@
 | `ThrowEscape` | しない | 投げ抜け、投げどうしの同時成立 | `StateFrame`が`ThrowEscapeRecoveryFrames`で行動の判断 |
 | `Blockstun`、`CrouchBlockstun` | しない | 立ちガード、しゃがみガードでのガード | `StunFrames`が0で行動の判断 |
 | `Hitstun` | しない | ダウンしない命中 | `StunFrames`が0で行動の判断 |
+| `WallStun` | しない | 命中で壁に押し戻された（ADR-0024） | `StunFrames`が0で行動の判断 |
 | `Down` | しない | ダウンする命中、ダウンさせる投げ | 起き上がりの入力（下の節） |
 | `Tech` | しない | ダウンから`TechFrames`以内のP+K+G | `StateFrame`が`TechRecoveryFrames`で行動の判断 |
 | `RollIn`、`RollOut` | しない | ダウン中の上、下 | `StateFrame`が`RollFrames`で`Rise` |
@@ -103,6 +104,8 @@ digit = 5 + 3 * v + h
 | 命中 | 体力から`Damage`を引く。`Knockdown`なら`Down`、違えば`Hitstun`で`StunFrames`は`Hitstun`。押し離す。`LastHitKind`は`Hit` | 同上 |
 | カウンターヒット | `CounterDamage`、`CounterHitstun`、`CounterKnockdown`で命中と同じ処理。`LastHitKind`は`CounterHit` | 同上 |
 | ダウン中への命中 | 体力から`Damage`を引き、`DownHitTaken`を付ける。状態と`StateFrame`は変えない。`LastHitKind`は`Hit` | 同上 |
+
+押し離した後は、受けた側を壁の縁から押し戻します。命中かカウンターヒットで押し戻しが起き、`WallHitTaken`が消えていれば、受けた側を`WallStun`にし、`StunFrames`を`WallStunFrames`、`LastHitKind`を`WallHit`か`CounterWallHit`にして、`WallHitTaken`を付けます。ダウンさせる攻撃でも同じです。`WallHitTaken`は、行動の判断を受け付ける状態へ戻ったフレームに消します。
 
 ガード、命中、カウンターヒットのいずれかが起きたら、2人の`HitstopFrames`を、現在の値と、このフレームに当たった技の`Hitstop`の最大値にします。適用の後、体力が0以下のプレイヤーは`Dead`です。
 

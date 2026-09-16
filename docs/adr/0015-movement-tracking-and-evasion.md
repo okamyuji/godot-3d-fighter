@@ -30,7 +30,7 @@
 
 - 向きの更新（相手の方を向き直すこと）は、次の間だけ毎フレーム行います。行動できる状態（Idle、Walk、BackWalk、Crouch、Guard、CrouchGuard）、横移動、ダッシュ、起き上がり（Rise）の間と、`Attack`の経過フレームが技の`Tracking`未満の間です。
 - `Tracking`は技データの項目で、0以上`Startup`以下のフレーム数です。0の技は、出した瞬間の向きのまま攻撃判定を出します。攻撃判定のカプセルを左右へ広げて置けば、追従しなくても横移動を捕まえる技を作れます。
-- 硬直（Hitstun、Blockstun、CrouchBlockstun）、投げの最中、ダウン、受け身、転がり、Deadの間は向きを変えません。
+- 硬直（Hitstun、Blockstun、CrouchBlockstun、WallStun）、投げの最中、ダウン、受け身、転がり、Deadの間は向きを変えません。
 - レバーが中立（5）から上（8）へ入ったフレームで、画面の奥への横移動（SidestepIn）が始まります。
 - レバーの下方向（1、2、3）は入れた瞬間にしゃがみになります。中立から下方向へ入れて`Limits.TapFrames`フレーム以内に中立（5）へ戻すと、戻したフレームで画面の手前への横移動（SidestepOut）が始まります。下方向から中立を経ずに前や後ろへ動かした場合は横移動になりません。「236P」の入力中に横移動が出ないためです。
 - 横移動は`CharacterData.SidestepFrames`フレーム続き、毎フレーム`SidestepSpeed`だけ向きと垂直に動きます。経過フレームが`SidestepCancelFrame`以上になると、攻撃、投げ、ガードの入力を受け付けます。
