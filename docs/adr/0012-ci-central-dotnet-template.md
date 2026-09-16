@@ -26,6 +26,6 @@ CIの共通部品は`okamyuji/reusable-workflows`に集約し、各リポジト�
 
 ## 影響
 
-- 中央リポジトリの変更は`central-workflow-release`の手順（タグ付け替え）で公開します。
+- 中央リポジトリの変更は`v1`タグの付け替えで公開します。
 - `.github/workflows/`配下を含むpushには、`workflow`スコープを持つ認証が要ります。
-- `dotnet-ci.yml`が中央に無い間、本リポジトリのCIはsecurity-scanだけが走ります。
+- 本リポジトリの`ci.yml`は`dotnet-ci.yml`とsecurity-scanの両方を呼び、CIで品質ゲートの全項目（ADR-0010）と主要導線の走破が走ります。
