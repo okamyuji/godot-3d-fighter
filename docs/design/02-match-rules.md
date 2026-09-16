@@ -62,9 +62,9 @@
 
 ### 起き上がりの入力（ADR-0021）
 
-`Down`に入る時に`PlayerFlags.DownHitTaken`と`PlayerFlags.TechQueued`を消し、入力履歴の直近`BufferFrames`フレーム以内にP+K+Gの同時押しの成立があれば`TechQueued`を付けます。
+`Down`に入る時に`PlayerFlags.DownHitTaken`と`PlayerFlags.TechQueued`を消し、入力履歴の直近`BufferFrames`フレーム以内にP+K+Gの同時押しの成立があれば、`TechQueued`を付ける決まりです。
 
-受け身の入力は、止まっているフレームも含めて`Down`の間の毎フレーム見ます。そのフレームにP+K+Gの同時押しが成立し、`StateFrame`が`TechFrames`以下なら`TechQueued`を付けます。
+受け身の入力を見るのは、止まっているフレームも含めた`Down`の間の毎フレームです。そのフレームにP+K+Gの同時押しが成立し、`StateFrame`が`TechFrames`以下なら`TechQueued`を付けます。
 
 止まっていないフレームでは、手順4で`StateFrame`を増やし、上の確認をしてから、次の順で判定します。
 
@@ -163,9 +163,9 @@ P1とQ1、P2とQ2はそれぞれのカプセルの両端、r1とr2は半径で�
 
 ### 投げの入力と終わり（ADR-0019）
 
-投げ抜けの受付範囲は、投げが成立したフレームの`BufferFrames`フレーム前から、`Thrown`の終わりまでです。この範囲で投げられた側がPかKを最初に押した瞬間のフレームを、起点とします。Gだけを押した瞬間は起点にしません。押し続けているGは、起点のフレームの入力に含みます。
+投げ抜けの受付範囲は、投げが成立したフレームの`BufferFrames`フレーム前から、`Thrown`の終わりまでです。この範囲で投げられた側がPかKを最初に押した瞬間のフレームが、起点です。Gだけを押した瞬間は起点にしません。押し続けているGは、起点のフレームの入力に含みます。
 
-起点から`SimultaneousPressFrames`フレーム後まで（受付範囲の終わりを超えない）の各フレームで、投げのコマンドが成立するかをADR-0017の規則で確かめます。方向は投げられた側の左右で読みます。成立すれば、2人を`ThrowEscape`にします。そして互いに離す向きへ、水平距離が`ThrowEscapeDistance`になるよう半分ずつ離し、2人の位置を確定します。この間に成立しなければ`PlayerFlags.ThrowEscapeTried`を付け、それより後の入力では抜けられません。起点が投げの成立より前にある時は、成立したフレームの手順11でこの確認を行います。
+起点から`SimultaneousPressFrames`フレーム後まで（受付範囲の終わりを超えない）の各フレームで、投げのコマンドが成立するかをADR-0017の規則で確かめます。方向の基準は投げられた側の左右です。成立した場合は2人を`ThrowEscape`にし、互いに離す向きへ、水平距離が`ThrowEscapeDistance`になるよう半分ずつ離して、2人の位置を確定します。この間に成立しなければ`PlayerFlags.ThrowEscapeTried`を付け、それより後の入力では抜けられません。起点が投げの成立より前にある時、この確認の時点は成立したフレームの手順11です。
 
 `Throwing`の`StateFrame`が`ThrowEscapeFrames`に達したら、投げられた側の体力から`Damage`を引きます。位置を「投げた側の足元 + `Trig.Rotate(ThrowEndOffset, 投げた側のFacing)`」にして確定し、`Facing`を投げた側へ向けます。`Knockdown`なら`Down`、違えば`Hitstun`です。`LastHitKind`は`Thrown`です。体力が0以下なら`Dead`ですが、トレーニングでは体力を1にします。投げた側は`Attack`のまま`StateFrame`を`Startup + Active`にして、硬直に入ります。
 
