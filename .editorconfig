@@ -14,6 +14,10 @@ indent_size = 4
 # 詰め物なしレイアウトが基底型byteに依存するため、既定のintへの変更は提案しない。
 dotnet_diagnostic.CA1028.severity = none
 
+[tests/**/*.cs]
+# CA1307: テストの固定文字列に対するstring.Replaceの文化非依存性は無関係なため抑制する。
+dotnet_diagnostic.CA1307.severity = none
+
 [*.{json,yml,yaml}]
 indent_size = 2
 

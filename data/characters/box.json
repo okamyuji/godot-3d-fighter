@@ -1,0 +1,177 @@
+{
+  "name": "box",
+  "walkSpeed": 0.05,
+  "backWalkSpeed": 0.04,
+  "dashSpeed": 0.12,
+  "dashFrames": 16,
+  "backdashSpeed": 0.1,
+  "backdashFrames": 18,
+  "dashCancelFrames": 4,
+  "sidestepSpeed": 0.06,
+  "sidestepFrames": 18,
+  "sidestepCancelFrame": 10,
+  "rollSpeed": 0.06,
+  "rollFrames": 24,
+  "bodyRadius": 0.3,
+  "standHurtCapsules": [
+    { "a": [0, 0.2, 0], "b": [0, 1.5, 0], "r": 0.3 }
+  ],
+  "crouchHurtCapsules": [
+    { "a": [0, 0.3, 0], "b": [0, 0.8, 0], "r": 0.35 }
+  ],
+  "downHurtCapsules": [
+    { "a": [-0.8, 0.15, 0], "b": [0.8, 0.15, 0], "r": 0.2 }
+  ],
+  "moves": [
+    {
+      "name": "jab",
+      "command": "P",
+      "kind": "Strike",
+      "posture": "Stand",
+      "startup": 10,
+      "active": 3,
+      "recovery": 12,
+      "tracking": 4,
+      "height": "High",
+      "damage": 12,
+      "counterDamage": 15,
+      "hitstun": 18,
+      "counterHitstun": 22,
+      "blockstun": 10,
+      "hitstop": 6,
+      "knockdown": false,
+      "counterKnockdown": false,
+      "hitsDown": false,
+      "pushback": 0.25,
+      "motion": [
+        { "from": 8, "to": 12, "forwardPerFrame": 0.02 }
+      ],
+      "windows": [
+        {
+          "from": 10,
+          "to": 12,
+          "hit": [ { "a": [0.3, 1.3, 0], "b": [0.8, 1.3, 0], "r": 0.12 } ],
+          "hurt": []
+        }
+      ]
+    },
+    {
+      "name": "lowKick",
+      "command": "K",
+      "kind": "Strike",
+      "posture": "Crouch",
+      "startup": 12,
+      "active": 3,
+      "recovery": 16,
+      "tracking": 6,
+      "height": "Low",
+      "damage": 14,
+      "counterDamage": 18,
+      "hitstun": 16,
+      "counterHitstun": 20,
+      "blockstun": 8,
+      "hitstop": 7,
+      "knockdown": false,
+      "counterKnockdown": true,
+      "hitsDown": false,
+      "pushback": 0.2,
+      "motion": [],
+      "windows": [
+        {
+          "from": 12,
+          "to": 14,
+          "hit": [ { "a": [0.2, 0.15, 0], "b": [0.8, 0.15, 0], "r": 0.15 } ],
+          "hurt": []
+        }
+      ]
+    },
+    {
+      "name": "launcher",
+      "command": "6K",
+      "kind": "Strike",
+      "posture": "Stand",
+      "startup": 18,
+      "active": 4,
+      "recovery": 24,
+      "tracking": 10,
+      "height": "Mid",
+      "damage": 22,
+      "counterDamage": 28,
+      "hitstun": 30,
+      "counterHitstun": 36,
+      "blockstun": 14,
+      "hitstop": 10,
+      "knockdown": true,
+      "counterKnockdown": true,
+      "hitsDown": false,
+      "pushback": 0.4,
+      "motion": [
+        { "from": 10, "to": 18, "forwardPerFrame": 0.03 }
+      ],
+      "windows": [
+        {
+          "from": 18,
+          "to": 21,
+          "hit": [ { "a": [0.3, 0.9, 0], "b": [0.9, 1.4, 0], "r": 0.2 } ],
+          "hurt": []
+        }
+      ]
+    },
+    {
+      "name": "throw",
+      "command": "P+G",
+      "kind": "Throw",
+      "posture": "Stand",
+      "startup": 6,
+      "active": 1,
+      "recovery": 20,
+      "tracking": 0,
+      "height": "Mid",
+      "damage": 25,
+      "counterDamage": 25,
+      "hitstun": 0,
+      "counterHitstun": 0,
+      "blockstun": 0,
+      "hitstop": 0,
+      "knockdown": true,
+      "counterKnockdown": true,
+      "hitsDown": false,
+      "pushback": 0,
+      "motion": [],
+      "windows": [],
+      "throwRange": 1.0,
+      "throwSide": "Front",
+      "throwEndOffset": [1.0, 0, 0]
+    },
+    {
+      "name": "risingP",
+      "command": "P",
+      "kind": "RisingAttack",
+      "posture": "Stand",
+      "startup": 8,
+      "active": 4,
+      "recovery": 20,
+      "tracking": 0,
+      "height": "Mid",
+      "damage": 10,
+      "counterDamage": 10,
+      "hitstun": 14,
+      "counterHitstun": 14,
+      "blockstun": 6,
+      "hitstop": 5,
+      "knockdown": false,
+      "counterKnockdown": false,
+      "hitsDown": false,
+      "pushback": 0.2,
+      "motion": [],
+      "windows": [
+        {
+          "from": 8,
+          "to": 11,
+          "hit": [ { "a": [0.2, 0.5, 0], "b": [0.7, 1.0, 0], "r": 0.2 } ],
+          "hurt": []
+        }
+      ]
+    }
+  ]
+}

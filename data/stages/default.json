@@ -1,0 +1,7 @@
+{
+  "name": "default",
+  "shape": "Square",
+  "size": 5.0,
+  "edges": ["RingOut", "RingOut", "RingOut", "RingOut"],
+  "startDistance": 2.0
+}

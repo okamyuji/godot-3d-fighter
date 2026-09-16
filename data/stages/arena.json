@@ -1,0 +1,7 @@
+{
+  "name": "arena",
+  "shape": "Octagon",
+  "size": 6.0,
+  "edges": ["Wall", "Wall", "Wall", "Wall", "Wall", "Wall", "Wall", "Wall"],
+  "startDistance": 2.0
+}

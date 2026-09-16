@@ -1,0 +1,7 @@
+{
+  "name": "cliff",
+  "shape": "Square",
+  "size": 5.0,
+  "edges": ["Wall", "RingOut", "Wall", "RingOut"],
+  "startDistance": 2.0
+}
