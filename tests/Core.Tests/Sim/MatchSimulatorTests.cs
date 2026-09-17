@@ -516,6 +516,26 @@ public sealed class MatchSimulatorTests
     }
 
     [Fact]
+    public void GuardedHitPushesTheDefenderAwayFromTheAttackerOnEitherSide()
+    {
+        // P1をP2の右側（+X）に置き、左を向かせる。位置の差と和が逆向きになるので、押し戻しの向きが差から決まることを確かめられる。
+        var context = Context();
+        var state = EnterFight(context);
+        state = state.WithPlayer(0, state.GetPlayer(0) with { Position = new Vec3Fix(Fix16.One, Fix16.Zero, Fix16.Zero), Facing = new Angle16(32768) });
+        state = state.WithPlayer(1, state.GetPlayer(1) with { Position = new Vec3Fix(Fix16.FromDecimal(0.4m), Fix16.Zero, Fix16.Zero), Facing = new Angle16(0), State = StateKind.Guard });
+        var startingX = state.GetPlayer(1).Position.X.Raw;
+
+        state = MatchSimulator.Step(state, new InputFrame(InputFrame.Punch), new InputFrame(InputFrame.Guard), context);
+        for (var i = 0; i < 6; i++)
+        {
+            state = MatchSimulator.Step(state, default, new InputFrame(InputFrame.Guard), context);
+        }
+
+        Assert.Equal(StateKind.Blockstun, state.GetPlayer(1).State);
+        Assert.True(state.GetPlayer(1).Position.X.Raw < startingX, "右側から殴られたP2は左へ押される。");
+    }
+
+    [Fact]
     public void JabBlockedWhileStandingEntersBlockstunWithoutDamage()
     {
         var context = Context();
