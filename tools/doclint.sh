@@ -7,7 +7,7 @@ exec python3 - "$ROOT" "$@" <<'PY'
 import re, sys, pathlib
 
 root = pathlib.Path(sys.argv[1])
-SKIP_DIRS = {".git", ".godot", "bin", "obj", "StrykerOutput", "TestResults"}
+SKIP_DIRS = {".git", ".godot", ".claude", "bin", "obj", "StrykerOutput", "TestResults", "superpowers"}
 targets = [pathlib.Path(p) for p in sys.argv[2:]] or [root]
 
 def walk(t):
