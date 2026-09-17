@@ -42,4 +42,4 @@
 
 - ランタイムやSDKの追加なしに、開発機でビルドとテストが動きます。
 - 直下の`.csproj`の`Compile Remove`を外すと、CoreとテストがGodot側で二重にコンパイルされます。この設定は変更しません。
-- 常に成り立つ条件C-12として「`Core`はGodotSharpを参照しない」を置き、`Core.Tests`の`AssemblyReferenceTests`で`Core`アセンブリの参照一覧を確かめます。
+- 制約条件C-12として「`Core`はGodotSharpを参照しない」を置き、`Core.Tests`の`AssemblyReferenceTests`で`Core`アセンブリの参照一覧を確かめます。

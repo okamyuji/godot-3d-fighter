@@ -29,5 +29,5 @@
 
 - ロールバックは、保存した`MatchState`を代入し、入力列を`Step`で再適用するだけになります。
 - 可変長のデータは上限を決めて固定長にします。上限は設計書の「定数と上限」に一覧します。
-- 常に成り立つ条件C-08として「`Unsafe.SizeOf<MatchState>()`が全項目のサイズの和と一致する（詰め物が無い）」を置き、`MatchStateLayoutTests`で確かめます。
-- 常に成り立つ条件C-09として「同じ状態と同じ入力から`Step`は同じ状態と同じハッシュを返す」を置き、`MatchSimulatorTests`で確かめます。
+- 制約条件C-08として「`Unsafe.SizeOf<MatchState>()`が全項目のサイズの和と一致する（詰め物が無い）」を置き、`MatchStateLayoutTests`で確かめます。
+- 制約条件C-09として「同じ状態と同じ入力から`Step`は同じ状態と同じハッシュを返す」を置き、`MatchSimulatorTests`で確かめます。

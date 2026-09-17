@@ -67,4 +67,4 @@ godot --headless --path . -- --check-flows
 ## ドキュメント
 
 - [ADR一覧](docs/adr/README.md) — 設計上の決定とその理由
-- [設計書](docs/design/README.md) — 型、試合の処理、常に成り立つ条件とテストの対応表
+- [設計書](docs/design/README.md) — 型、試合の処理、制約条件とテストの対応表
