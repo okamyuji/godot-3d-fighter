@@ -9,6 +9,7 @@
     { "action": "ConfirmP2" },
     { "expectPhase": "Fight", "withinFrames": 120 },
     { "frames": 182, "p1": "5", "p2": "5" },
-    { "expectMatchEnd": { "winners": [] }, "withinFrames": 50 }
+    { "expectMatchEnd": { "winners": [] }, "withinFrames": 50 },
+    { "expectHud": "TIME UP", "withinFrames": 10 }
   ]
 }

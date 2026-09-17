@@ -28,3 +28,4 @@
 | [ADR-0022](0022-round-match-end-and-training.md) | 同時に負けた時は両者に1勝を加え、最大ラウンド数で引き分けにする | C-31、C-32、C-33 |
 | [ADR-0023](0023-screens-and-primary-flows.md) | 画面の構成と遷移を最初の到達点で確定し、主要導線をすべて走破する | 無し |
 | [ADR-0024](0024-wall-stun.md) | 壁に叩きつけると壁やられになり、1回の連続技で1回だけ起きる | C-35 |
+| [ADR-0025](0025-character-figure-from-capsules.md) | キャラの見た目は判定データから組み立てた図形にする | 無し |

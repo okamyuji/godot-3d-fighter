@@ -171,6 +171,15 @@ public sealed partial class E2eRunner : Node
             return;
         }
 
+        if (step.ExpectHud is { } expectHud)
+        {
+            RunWaitStep(
+                step,
+                () => FindMatchState()?.HudText.Contains(expectHud, StringComparison.Ordinal) == true,
+                "表示'" + expectHud + "'");
+            return;
+        }
+
         if (step.ExpectRoundEnd is { } roundEnd)
         {
             var winnersBits = ToWinnersBits(roundEnd.Winners);

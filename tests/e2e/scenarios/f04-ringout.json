@@ -10,6 +10,7 @@
     { "action": "ConfirmP2" },
     { "expectPhase": "Fight", "withinFrames": 120 },
     { "frames": 40, "p1": "5", "p2": "6" },
-    { "expectRoundEnd": { "reason": "RingOut", "winners": [1] }, "withinFrames": 40 }
+    { "expectRoundEnd": { "reason": "RingOut", "winners": [1] }, "withinFrames": 40 },
+    { "expectHud": "RING OUT", "withinFrames": 10 }
   ]
 }

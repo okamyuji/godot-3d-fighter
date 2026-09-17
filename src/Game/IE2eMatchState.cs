@@ -10,4 +10,7 @@ public interface IE2eMatchState
     RoundEndReason LastRoundReason { get; }
 
     byte LastRoundWinners { get; }
+
+    /// <summary>HUDに出している文字列を空白で連結したもの。expectHudが含むかを確かめる。</summary>
+    string HudText { get; }
 }

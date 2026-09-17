@@ -1,17 +1,19 @@
 using Godot;
-using Godot3dFighter.Core;
+using Godot3dFighter.Core.Data;
 using Godot3dFighter.Core.Input;
 using Godot3dFighter.Core.Sim;
 using Godot3dFighter.Core.State;
+using Godot3dFighter.Game.View;
 
 namespace Godot3dFighter.Game.Screens;
 
-/// <summary>試合とトレーニングで共通する、1物理フレームごとのMatchSimulator.Step呼び出しと箱の表示（03-screens-and-e2e.md）。</summary>
+/// <summary>試合とトレーニングで共通する、1物理フレームごとのMatchSimulator.Step呼び出しと、図形キャラ、カメラ、HUDの更新（03-screens-and-e2e.md）。</summary>
 public abstract partial class FightScreenBase : Node3D, IE2eMatchState
 {
-    private MeshInstance3D? _p1Box;
-    private MeshInstance3D? _p2Box;
-    private Label? _infoLabel;
+    private CharacterFigure? _p1Figure;
+    private CharacterFigure? _p2Figure;
+    private FightCamera? _camera;
+    private FightHud? _hud;
 
     protected MatchContext Context { get; private set; } = null!;
 
@@ -23,41 +25,30 @@ public abstract partial class FightScreenBase : Node3D, IE2eMatchState
 
     public byte LastRoundWinners => State.LastRoundWinners;
 
+    public string HudText => _hud?.Text ?? "";
+
     public override void _Ready()
     {
         Context = BuildContext();
         State = MatchSimulator.CreateMatch(Context);
 
-        _p1Box = BuildBox(new Color(0.2f, 0.4f, 0.9f));
-        _p2Box = BuildBox(new Color(0.9f, 0.3f, 0.2f));
+        _p1Figure = new CharacterFigure { BaseColor = new Color(0.2f, 0.4f, 0.9f) };
+        _p2Figure = new CharacterFigure { BaseColor = new Color(0.9f, 0.3f, 0.2f) };
+        AddChild(_p1Figure);
+        AddChild(_p2Figure);
 
-        var camera = new Camera3D
-        {
-            Position = new Vector3(0, 1.6f, 4.5f),
-        };
-        AddChild(camera);
-        camera.LookAt(new Vector3(0, 1, 0), Vector3.Up);
+        _camera = new FightCamera();
+        AddChild(_camera);
 
         var light = new DirectionalLight3D
         {
             RotationDegrees = new Vector3(-45, -30, 0),
         };
         AddChild(light);
+        AddChild(BuildFloor(Context.Stage));
 
-        var floor = new MeshInstance3D
-        {
-            Mesh = new PlaneMesh { Size = new Vector2(8, 8) },
-            MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.3f, 0.3f, 0.35f) },
-        };
-        AddChild(floor);
-
-        var canvas = new CanvasLayer();
-        _infoLabel = new Label
-        {
-            Position = new Vector2(16, 16),
-        };
-        canvas.AddChild(_infoLabel);
-        AddChild(canvas);
+        _hud = new FightHud();
+        AddChild(_hud);
 
         UpdateView();
     }
@@ -91,46 +82,43 @@ public abstract partial class FightScreenBase : Node3D, IE2eMatchState
 
     private MatchContext BuildContext() => GetGameState().LoadContext();
 
-    private static MeshInstance3D BuildBox(Color color)
+    private static MeshInstance3D BuildFloor(StageData stage)
     {
-        var mesh = new MeshInstance3D
+        var size = FixConvert.ToFloat(stage.Size);
+        var floor = new MeshInstance3D
         {
-            Mesh = new BoxMesh { Size = new Vector3(0.5f, 1.7f, 0.4f) },
+            MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.3f, 0.3f, 0.35f) },
         };
-        var material = new StandardMaterial3D { AlbedoColor = color };
-        mesh.MaterialOverride = material;
-        return mesh;
+        if (stage.Shape == RingShape.Square)
+        {
+            floor.Mesh = new PlaneMesh { Size = new Vector2(size * 2, size * 2) };
+        }
+        else
+        {
+            floor.Mesh = new CylinderMesh { TopRadius = size, BottomRadius = size, Height = 0.02f };
+            floor.Position = new Vector3(0, -0.01f, 0);
+        }
+
+        return floor;
     }
 
     private void UpdateView()
     {
-        var p1 = State.GetPlayer(0);
-        var p2 = State.GetPlayer(1);
-
-        if (_p1Box is not null)
+        if (_p1Figure is null || _p2Figure is null || _camera is null || _hud is null)
         {
-            _p1Box.Position = FixConvert.ToVector3(p1.Position) + new Vector3(0, 0.85f, 0);
-            _p1Box.Rotation = new Vector3(0, FixConvert.ToRadians(p1.Facing), 0);
-            if (_p1Box.GetParent() is null)
-            {
-                AddChild(_p1Box);
-            }
+            return;
         }
 
-        if (_p2Box is not null)
-        {
-            _p2Box.Position = FixConvert.ToVector3(p2.Position) + new Vector3(0, 0.85f, 0);
-            _p2Box.Rotation = new Vector3(0, FixConvert.ToRadians(p2.Facing), 0);
-            if (_p2Box.GetParent() is null)
-            {
-                AddChild(_p2Box);
-            }
-        }
+        Place(_p1Figure, State.GetPlayer(0));
+        Place(_p2Figure, State.GetPlayer(1));
+        _camera.Apply(State);
+        _hud.Apply(State, Context);
+    }
 
-        if (_infoLabel is not null)
-        {
-            var secondsLeft = (State.RoundTimerFrames + Limits.FramesPerSecond - 1) / Limits.FramesPerSecond;
-            _infoLabel.Text = $"P1 HP:{p1.Health}  P2 HP:{p2.Health}  time:{secondsLeft}  round:{State.RoundNumber}  wins:{State.GetRoundWins(0)}-{State.GetRoundWins(1)}  phase:{State.Phase}";
-        }
+    private void Place(CharacterFigure figure, in PlayerState player)
+    {
+        figure.Position = FixConvert.ToVector3(player.Position);
+        figure.Rotation = new Vector3(0, FixConvert.ToRadians(player.Facing), 0);
+        figure.Apply(player, Context);
     }
 }
