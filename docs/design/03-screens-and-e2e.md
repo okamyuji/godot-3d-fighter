@@ -122,7 +122,7 @@ godot --headless --path . -- --check-flows
 | F-05 | `f05-timeup.json` | `rules-timeup.json` | 入力しないまま時間切れを待ち、2人の勝ちと引き分けの試合終了を待つ、`TIME UP`の表示を待つ |
 | F-06 | `f06-result-to-title.json` | `rules-e2e.json` | F-03と同じ手順で試合を終え、リザルトで`Confirm`し、タイトルを待つ |
 | F-07 | `f07-training.json` | 無し | トレーニングを選び、P1だけが決定し、`DummyGuardAll`で打撃を出し、`ResetPositions`、`Exit`でタイトルを待つ |
-| F-08 | `f08-cpu-match.json` | `rules-e2e.json` | 対戦を選び、P1だけが決定し、カウントダウンの後の`Fight`を待ち、P1が動かないままKOでP2の勝ちを待つ、`KO`の表示を待つ |
+| F-08 | `f08-cpu-match.json` | `rules-e2e.json` | 対戦を選び、`NextCpuLevel`でつよいにし、P1だけが決定し、カウントダウンの後の`Fight`を待ち、P1が動かないままKOでP2の勝ちを待つ、`KO`の表示を待つ |
 
 走破用のデータは`tests/e2e/data/`に置きます。
 
