@@ -23,6 +23,7 @@ CIの共通部品は`okamyuji/reusable-workflows`に集約し、各リポジト�
 - 本リポジトリの`ci.yml`は、security-scanと`dotnet-ci.yml`をコミットSHAで版を固定して呼びます。中央リポジトリの更新はSHAを書き換えて取り込みます。
 - Godot本体は公式zipを取得し、呼び出し側が渡したSHA-512と照合してから展開します。値はリリースの`SHA512-SUMS.txt`から写します。zipはactionsのキャッシュに保存します。
 - `dotnet-ci.yml`が使う外部のアクションは、すべてコミットSHAで版を固定します。
+- `ci.yml`の各ジョブは`permissions`で`GITHUB_TOKEN`の権限を明示します。`ci`は`contents: read`だけで、security-scanは`contents: read`と`pull-requests: write`です。
 
 ## 影響
 
