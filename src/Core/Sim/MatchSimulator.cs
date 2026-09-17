@@ -68,64 +68,23 @@ public static class MatchSimulator
         var onLeftSide0 = CameraSide.IsP1OnLeft(result.GetPlayer(0).Position, result.GetPlayer(1).Position, result.CameraYaw);
 
         // 3. ヒットストップ
-        var stopped = new bool[Limits.PlayerCount];
-        for (var i = 0; i < Limits.PlayerCount; i++)
-        {
-            var player = result.GetPlayer(i);
-            if (player.HitstopFrames > 0)
-            {
-                result = result.WithPlayer(i, player with { HitstopFrames = (byte)(player.HitstopFrames - 1) });
-                stopped[i] = true;
-            }
-        }
-
-        for (var i = 0; i < Limits.PlayerCount; i++)
-        {
-            if (stopped[i])
-            {
-                result = ProcessStoppedDownPlayer(result, i, context, OnLeftSide(i, onLeftSide0));
-            }
-        }
+        (result, var stopped) = ApplyHitstop(result, context, onLeftSide0);
 
         // 4. 状態の経過
-        for (var i = 0; i < Limits.PlayerCount; i++)
-        {
-            if (!stopped[i])
-            {
-                result = AdvanceState(result, i, context, OnLeftSide(i, onLeftSide0));
-            }
-        }
+        result = ForEachActivePlayer(result, stopped, onLeftSide0, AdvanceState, context);
 
         // 5. 行動の判断
-        for (var i = 0; i < Limits.PlayerCount; i++)
-        {
-            if (!stopped[i])
-            {
-                result = ChooseAction(result, i, context, OnLeftSide(i, onLeftSide0));
-            }
-        }
+        result = ForEachActivePlayer(result, stopped, onLeftSide0, ChooseAction, context);
 
         // 6. 移動
         var positionsBeforeMovement = (result.GetPlayer(0).Position, result.GetPlayer(1).Position);
-        for (var i = 0; i < Limits.PlayerCount; i++)
-        {
-            if (!stopped[i])
-            {
-                result = ApplyMovement(result, i, context);
-            }
-        }
+        result = ForEachActivePlayer(result, stopped, onLeftSide0, (s, i, c, _) => ApplyMovement(s, i, c), context);
 
         // 7. 体の押し合いと壁
         result = ApplyBodyPush(result, context, positionsBeforeMovement, onLeftSide0);
 
         // 8. 向きの更新
-        for (var i = 0; i < Limits.PlayerCount; i++)
-        {
-            if (!stopped[i])
-            {
-                result = ApplyFacing(result, i, context);
-            }
-        }
+        result = ForEachActivePlayer(result, stopped, onLeftSide0, (s, i, c, _) => ApplyFacing(s, i, c), context);
 
         // 9. 画面の左右
         result.CameraYaw = CameraSide.Update(result.GetPlayer(0).Position, result.GetPlayer(1).Position, result.CameraYaw);
@@ -143,51 +102,93 @@ public static class MatchSimulator
 
     private static bool OnLeftSide(int slot, bool p1OnLeft) => slot == 0 ? p1OnLeft : !p1OnLeft;
 
-    private static MatchState AdvancePhase(in MatchState state, MatchContext context)
+    private static (MatchState State, bool[] Stopped) ApplyHitstop(MatchState state, MatchContext context, bool onLeftSide0)
     {
-        var result = state;
-        switch (result.Phase)
+        var stopped = new bool[Limits.PlayerCount];
+        for (var i = 0; i < Limits.PlayerCount; i++)
         {
-            case RoundPhase.Intro:
-                result.PhaseFrames++;
-                if (result.PhaseFrames >= context.Rules.IntroFrames)
-                {
-                    result.Phase = RoundPhase.Fight;
-                    result.PhaseFrames = 0;
-                }
+            var player = state.GetPlayer(i);
+            if (player.HitstopFrames > 0)
+            {
+                state = state.WithPlayer(i, player with { HitstopFrames = (byte)(player.HitstopFrames - 1) });
+                stopped[i] = true;
+            }
+        }
 
-                break;
-            case RoundPhase.RoundEnd:
-                result.PhaseFrames++;
-                if (result.PhaseFrames >= context.Rules.RoundEndFrames)
-                {
-                    var matchOver = RoundResolver.IsMatchOver(
-                        result.GetRoundWins(0), result.GetRoundWins(1), result.RoundNumber, context.Rules.RoundsToWin, context.Rules.MaxRounds);
-                    if (matchOver)
-                    {
-                        result.Phase = RoundPhase.MatchEnd;
-                        result.PhaseFrames = 0;
-                    }
-                    else
-                    {
-                        result = ResetPositions(result, context);
-                        result.RoundNumber++;
-                        result.Phase = RoundPhase.Intro;
-                        result.PhaseFrames = 0;
-                    }
-                }
+        for (var i = 0; i < Limits.PlayerCount; i++)
+        {
+            if (stopped[i])
+            {
+                state = ProcessStoppedDownPlayer(state, i, context, OnLeftSide(i, onLeftSide0));
+            }
+        }
 
-                break;
-            case RoundPhase.MatchEnd:
-                if (result.PhaseFrames < ushort.MaxValue)
-                {
-                    result.PhaseFrames++;
-                }
+        return (state, stopped);
+    }
 
-                break;
-            case RoundPhase.Fight:
-            default:
-                break;
+    private static MatchState ForEachActivePlayer(
+        MatchState state, bool[] stopped, bool onLeftSide0, Func<MatchState, int, MatchContext, bool, MatchState> action, MatchContext context)
+    {
+        for (var i = 0; i < Limits.PlayerCount; i++)
+        {
+            if (!stopped[i])
+            {
+                state = action(state, i, context, OnLeftSide(i, onLeftSide0));
+            }
+        }
+
+        return state;
+    }
+
+    private static MatchState AdvancePhase(in MatchState state, MatchContext context) => state.Phase switch
+    {
+        RoundPhase.Intro => AdvanceIntroPhase(state, context),
+        RoundPhase.RoundEnd => AdvanceRoundEndPhase(state, context),
+        RoundPhase.MatchEnd => AdvanceMatchEndPhase(state),
+        _ => state,
+    };
+
+    private static MatchState AdvanceIntroPhase(MatchState result, MatchContext context)
+    {
+        result.PhaseFrames++;
+        if (result.PhaseFrames >= context.Rules.IntroFrames)
+        {
+            result.Phase = RoundPhase.Fight;
+            result.PhaseFrames = 0;
+        }
+
+        return result;
+    }
+
+    private static MatchState AdvanceRoundEndPhase(MatchState result, MatchContext context)
+    {
+        result.PhaseFrames++;
+        if (result.PhaseFrames < context.Rules.RoundEndFrames)
+        {
+            return result;
+        }
+
+        var matchOver = RoundResolver.IsMatchOver(
+            result.GetRoundWins(0), result.GetRoundWins(1), result.RoundNumber, context.Rules.RoundsToWin, context.Rules.MaxRounds);
+        if (matchOver)
+        {
+            result.Phase = RoundPhase.MatchEnd;
+            result.PhaseFrames = 0;
+            return result;
+        }
+
+        result = ResetPositions(result, context);
+        result.RoundNumber++;
+        result.Phase = RoundPhase.Intro;
+        result.PhaseFrames = 0;
+        return result;
+    }
+
+    private static MatchState AdvanceMatchEndPhase(MatchState result)
+    {
+        if (result.PhaseFrames < ushort.MaxValue)
+        {
+            result.PhaseFrames++;
         }
 
         return result;
@@ -276,98 +277,43 @@ public static class MatchSimulator
     private static PlayerState ApplyEndConditions(PlayerState player, int index, MatchContext context, bool onLeftSide)
     {
         var character = context.Characters[index];
-        switch (player.State)
+        return player.State switch
         {
-            case StateKind.SidestepIn:
-            case StateKind.SidestepOut:
-                if (player.StateFrame >= character.SidestepFrames)
-                {
-                    player = ToActionable(player);
-                }
+            StateKind.SidestepIn or StateKind.SidestepOut => EndAfterFrames(player, character.SidestepFrames),
+            StateKind.Dash => EndAfterFrames(player, character.DashFrames),
+            StateKind.Backdash => EndAfterFrames(player, character.BackdashFrames),
+            StateKind.Attack => EndAttack(player, character),
+            StateKind.ThrowEscape => EndAfterFrames(player, context.Rules.ThrowEscapeRecoveryFrames),
+            StateKind.Blockstun or StateKind.CrouchBlockstun or StateKind.Hitstun or StateKind.WallStun => EndStun(player),
+            StateKind.Tech => EndAfterFrames(player, context.Rules.TechRecoveryFrames),
+            StateKind.RollIn or StateKind.RollOut => EndRoll(player, character.RollFrames),
+            StateKind.Rise => EndAfterFrames(player, context.Rules.RiseFrames),
+            StateKind.Down => AdvanceDown(player, context, onLeftSide),
+            _ => player,
+        };
+    }
 
-                break;
-            case StateKind.Dash:
-                if (player.StateFrame >= character.DashFrames)
-                {
-                    player = ToActionable(player);
-                }
+    private static PlayerState EndAfterFrames(PlayerState player, ushort frames) =>
+        player.StateFrame >= frames ? ToActionable(player) : player;
 
-                break;
-            case StateKind.Backdash:
-                if (player.StateFrame >= character.BackdashFrames)
-                {
-                    player = ToActionable(player);
-                }
-
-                break;
-            case StateKind.Attack:
-                if (player.CurrentMove != Limits.NoMove)
-                {
-                    var move = character.Moves[player.CurrentMove];
-                    if (player.StateFrame >= move.Startup + move.Active + move.Recovery)
-                    {
-                        player = ToActionable(player) with { CurrentMove = Limits.NoMove };
-                    }
-                }
-
-                break;
-            case StateKind.ThrowEscape:
-                if (player.StateFrame >= context.Rules.ThrowEscapeRecoveryFrames)
-                {
-                    player = ToActionable(player);
-                }
-
-                break;
-            case StateKind.Blockstun:
-            case StateKind.CrouchBlockstun:
-            case StateKind.Hitstun:
-            case StateKind.WallStun:
-                if (player.StunFrames == 0)
-                {
-                    player = ToActionable(player) with { Flags = player.Flags & ~PlayerFlags.WallHitTaken };
-                }
-
-                break;
-            case StateKind.Tech:
-                if (player.StateFrame >= context.Rules.TechRecoveryFrames)
-                {
-                    player = ToActionable(player);
-                }
-
-                break;
-            case StateKind.RollIn:
-            case StateKind.RollOut:
-                if (player.StateFrame >= character.RollFrames)
-                {
-                    player = player with { State = StateKind.Rise, StateFrame = 0 };
-                }
-
-                break;
-            case StateKind.Rise:
-                if (player.StateFrame >= context.Rules.RiseFrames)
-                {
-                    player = ToActionable(player);
-                }
-
-                break;
-            case StateKind.Down:
-                player = AdvanceDown(player, context, onLeftSide);
-                break;
-            case StateKind.Idle:
-            case StateKind.Walk:
-            case StateKind.BackWalk:
-            case StateKind.Crouch:
-            case StateKind.Guard:
-            case StateKind.CrouchGuard:
-            case StateKind.Throwing:
-            case StateKind.Thrown:
-            case StateKind.Dead:
-            default:
-                break;
+    private static PlayerState EndAttack(PlayerState player, CharacterData character)
+    {
+        if (player.CurrentMove == Limits.NoMove)
+        {
+            return player;
         }
 
-        return player;
+        var move = character.Moves[player.CurrentMove];
+        return player.StateFrame >= move.Startup + move.Active + move.Recovery
+            ? ToActionable(player) with { CurrentMove = Limits.NoMove }
+            : player;
     }
+
+    private static PlayerState EndStun(PlayerState player) =>
+        player.StunFrames == 0 ? ToActionable(player) with { Flags = player.Flags & ~PlayerFlags.WallHitTaken } : player;
+
+    private static PlayerState EndRoll(PlayerState player, ushort rollFrames) =>
+        player.StateFrame >= rollFrames ? player with { State = StateKind.Rise, StateFrame = 0 } : player;
 
     private static PlayerState ToActionable(PlayerState player) =>
         player with { State = StateKind.Idle, StateFrame = 0, Flags = player.Flags & ~PlayerFlags.DownHitTaken & ~PlayerFlags.ThrowEscapeTried };
@@ -443,28 +389,32 @@ public static class MatchSimulator
         }
 
         var decision = ActionSelector.Select(player.Inputs, onLeftSide, character.Moves, buffered);
-        player = decision.Action switch
-        {
-            SelectedAction.Move => player with
-            {
-                State = StateKind.Attack,
-                StateFrame = 0,
-                CurrentMove = (byte)decision.MoveIndex,
-                Flags = player.Flags & ~PlayerFlags.HasHitThisMove,
-            },
-            SelectedAction.DashForward => player with { State = StateKind.Dash, StateFrame = 0 },
-            SelectedAction.DashBack => player with { State = StateKind.Backdash, StateFrame = 0 },
-            SelectedAction.Guard => player with { State = StateKind.Guard, StateFrame = player.State == StateKind.Guard ? player.StateFrame : (ushort)0 },
-            SelectedAction.CrouchGuard => player with { State = StateKind.CrouchGuard, StateFrame = player.State == StateKind.CrouchGuard ? player.StateFrame : (ushort)0 },
-            SelectedAction.Crouch => player with { State = StateKind.Crouch, StateFrame = player.State == StateKind.Crouch ? player.StateFrame : (ushort)0 },
-            SelectedAction.WalkForward => player with { State = StateKind.Walk, StateFrame = player.State == StateKind.Walk ? player.StateFrame : (ushort)0 },
-            SelectedAction.WalkBack => player with { State = StateKind.BackWalk, StateFrame = player.State == StateKind.BackWalk ? player.StateFrame : (ushort)0 },
-            SelectedAction.Idle => player with { State = StateKind.Idle, StateFrame = player.State == StateKind.Idle ? player.StateFrame : (ushort)0 },
-            _ => player,
-        };
-
-        return state.WithPlayer(index, player);
+        return state.WithPlayer(index, ApplyActionDecision(player, decision));
     }
+
+    private static PlayerState ApplyActionDecision(PlayerState player, ActionDecision decision) => decision.Action switch
+    {
+        SelectedAction.Move => player with
+        {
+            State = StateKind.Attack,
+            StateFrame = 0,
+            CurrentMove = (byte)decision.MoveIndex,
+            Flags = player.Flags & ~PlayerFlags.HasHitThisMove,
+        },
+        SelectedAction.DashForward => player with { State = StateKind.Dash, StateFrame = 0 },
+        SelectedAction.DashBack => player with { State = StateKind.Backdash, StateFrame = 0 },
+        SelectedAction.Guard => EnterPersistentState(player, StateKind.Guard),
+        SelectedAction.CrouchGuard => EnterPersistentState(player, StateKind.CrouchGuard),
+        SelectedAction.Crouch => EnterPersistentState(player, StateKind.Crouch),
+        SelectedAction.WalkForward => EnterPersistentState(player, StateKind.Walk),
+        SelectedAction.WalkBack => EnterPersistentState(player, StateKind.BackWalk),
+        SelectedAction.Idle => EnterPersistentState(player, StateKind.Idle),
+        _ => player,
+    };
+
+    /// <summary>すでに同じ状態ならStateFrameを保ち、違う状態なら0から数え直す。</summary>
+    private static PlayerState EnterPersistentState(PlayerState player, StateKind state) =>
+        player with { State = state, StateFrame = player.State == state ? player.StateFrame : (ushort)0 };
 
     private static MatchState ApplyMovement(MatchState state, int index, MatchContext context)
     {
@@ -571,42 +521,49 @@ public static class MatchSimulator
         var move = outcome.Move!;
         attacker = attacker with { Flags = attacker.Flags | PlayerFlags.HasHitThisMove };
 
-        if (outcome.Kind == HitOutcomeKind.DownHit)
+        defender = outcome.Kind switch
         {
-            defender = defender with { Health = defender.Health - move.Damage, Flags = defender.Flags | PlayerFlags.DownHitTaken, LastHitKind = HitKind.Hit };
-            return (defender, attacker);
-        }
+            HitOutcomeKind.DownHit => ApplyDownHit(defender, move),
+            HitOutcomeKind.Guarded => ApplyGuardedHit(attacker, defender, move, context),
+            _ => ApplyDamagingHit(attacker, defender, move, outcome.Kind == HitOutcomeKind.CounterHit, context),
+        };
 
+        return (defender, attacker);
+    }
+
+    private static PlayerState ApplyDownHit(PlayerState defender, MoveData move) =>
+        defender with { Health = defender.Health - move.Damage, Flags = defender.Flags | PlayerFlags.DownHitTaken, LastHitKind = HitKind.Hit };
+
+    private static PlayerState ApplyGuardedHit(PlayerState attacker, PlayerState defender, MoveData move, MatchContext context)
+    {
         var pushDirection = HorizontalUnit(defender.Position - attacker.Position, attacker.Facing);
-
-        if (outcome.Kind == HitOutcomeKind.Guarded)
+        var pushed = defender.Position + (pushDirection * move.Pushback);
+        var pushedFinal = PositionFinalizer.Finalize(pushed, context.Characters[defender.Slot].BodyRadius, context.Stage);
+        var crouching = defender.State == StateKind.CrouchGuard;
+        return defender with
         {
-            var pushed = defender.Position + (pushDirection * move.Pushback);
-            var pushedFinal = PositionFinalizer.Finalize(pushed, context.Characters[defender.Slot].BodyRadius, context.Stage);
-            var crouching = defender.State == StateKind.CrouchGuard;
-            defender = defender with
-            {
-                State = crouching ? StateKind.CrouchBlockstun : StateKind.Blockstun,
-                StateFrame = 0,
-                StunFrames = move.Blockstun,
-                Position = pushedFinal,
-                LastHitKind = HitKind.Guarded,
-            };
-            return (defender, attacker);
-        }
+            State = crouching ? StateKind.CrouchBlockstun : StateKind.Blockstun,
+            StateFrame = 0,
+            StunFrames = move.Blockstun,
+            Position = pushedFinal,
+            LastHitKind = HitKind.Guarded,
+        };
+    }
 
-        var isCounter = outcome.Kind == HitOutcomeKind.CounterHit;
+    private static PlayerState ApplyDamagingHit(PlayerState attacker, PlayerState defender, MoveData move, bool isCounter, MatchContext context)
+    {
         var damage = isCounter ? move.CounterDamage : move.Damage;
         var knockdown = isCounter ? move.CounterKnockdown : move.Knockdown;
         var stun = isCounter ? move.CounterHitstun : move.Hitstun;
 
+        var pushDirection = HorizontalUnit(defender.Position - attacker.Position, attacker.Facing);
         var pushedPos = defender.Position + (pushDirection * move.Pushback);
         var wallResult = WallStunResolver.Resolve(pushedPos, context.Characters[defender.Slot].BodyRadius, context.Stage, defender.Flags);
-
         var newHealth = defender.Health - damage;
+
         if (wallResult.BecameWallStun)
         {
-            defender = defender with
+            return defender with
             {
                 Health = newHealth,
                 State = StateKind.WallStun,
@@ -617,9 +574,10 @@ public static class MatchSimulator
                 LastHitKind = isCounter ? HitKind.CounterWallHit : HitKind.WallHit,
             };
         }
-        else if (knockdown)
+
+        if (knockdown)
         {
-            defender = defender with
+            return defender with
             {
                 Health = newHealth,
                 State = StateKind.Down,
@@ -629,21 +587,17 @@ public static class MatchSimulator
                 LastHitKind = isCounter ? HitKind.CounterHit : HitKind.Hit,
             };
         }
-        else
-        {
-            defender = defender with
-            {
-                Health = newHealth,
-                State = StateKind.Hitstun,
-                StateFrame = 0,
-                StunFrames = stun,
-                Position = wallResult.FinalPosition,
-                Flags = wallResult.NewFlags,
-                LastHitKind = isCounter ? HitKind.CounterHit : HitKind.Hit,
-            };
-        }
 
-        return (defender, attacker);
+        return defender with
+        {
+            Health = newHealth,
+            State = StateKind.Hitstun,
+            StateFrame = 0,
+            StunFrames = stun,
+            Position = wallResult.FinalPosition,
+            Flags = wallResult.NewFlags,
+            LastHitKind = isCounter ? HitKind.CounterHit : HitKind.Hit,
+        };
     }
 
     private static Vec3Fix HorizontalUnit(Vec3Fix diff, Angle16 fallbackFacing)
@@ -658,34 +612,40 @@ public static class MatchSimulator
         return new Vec3Fix(diff.X / dist, Fix16.Zero, diff.Z / dist);
     }
 
-    private static MatchState ResolveRoundEnd(MatchState state, MatchContext context)
+    private static MatchState ResolveRoundEnd(MatchState state, MatchContext context) =>
+        context.Rules.Training ? ResolveTrainingRound(state, context) : ResolveMatchRound(state, context);
+
+    private static bool IsActionableForHealthReset(PlayerState player) =>
+        player.StateFrame == 0
+        && player.State is StateKind.Idle or StateKind.Walk or StateKind.BackWalk or StateKind.Crouch or StateKind.Guard or StateKind.CrouchGuard;
+
+    private static MatchState ResolveTrainingRound(MatchState state, MatchContext context)
     {
         var p1 = state.GetPlayer(0);
         var p2 = state.GetPlayer(1);
 
-        if (context.Rules.Training)
+        if (RingBounds.IsOut(p1.Position, context.Stage) || RingBounds.IsOut(p2.Position, context.Stage))
         {
-            var stage = context.Stage;
-            if (RingBounds.IsOut(p1.Position, stage) || RingBounds.IsOut(p2.Position, stage))
-            {
-                return ResetPositions(state, context);
-            }
-
-            var actionable0 = p1.StateFrame == 0 && p1.State is StateKind.Idle or StateKind.Walk or StateKind.BackWalk or StateKind.Crouch or StateKind.Guard or StateKind.CrouchGuard;
-            var actionable1 = p2.StateFrame == 0 && p2.State is StateKind.Idle or StateKind.Walk or StateKind.BackWalk or StateKind.Crouch or StateKind.Guard or StateKind.CrouchGuard;
-            if (actionable0 && p1.Health < context.Rules.InitialHealth)
-            {
-                state = state.WithPlayer(0, p1 with { Health = context.Rules.InitialHealth });
-            }
-
-            if (actionable1 && p2.Health < context.Rules.InitialHealth)
-            {
-                state = state.WithPlayer(1, p2 with { Health = context.Rules.InitialHealth });
-            }
-
-            return state;
+            return ResetPositions(state, context);
         }
 
+        if (IsActionableForHealthReset(p1) && p1.Health < context.Rules.InitialHealth)
+        {
+            state = state.WithPlayer(0, p1 with { Health = context.Rules.InitialHealth });
+        }
+
+        if (IsActionableForHealthReset(p2) && p2.Health < context.Rules.InitialHealth)
+        {
+            state = state.WithPlayer(1, p2 with { Health = context.Rules.InitialHealth });
+        }
+
+        return state;
+    }
+
+    private static MatchState ResolveMatchRound(MatchState state, MatchContext context)
+    {
+        var p1 = state.GetPlayer(0);
+        var p2 = state.GetPlayer(1);
         var outcome = RoundResolver.CheckRoundEnd(p1, p2, context.Stage, state.RoundTimerFrames);
         if (!outcome.Decided)
         {

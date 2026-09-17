@@ -90,6 +90,46 @@ public static partial class GameDataLoader
 
     private static MoveData MapMove(MoveDataDto dto)
     {
+        ValidateMoveBasics(dto);
+
+        RequireAtMost(dto.Motion.Count, Limits.MaxMotionSegmentsPerMove, $"技'{dto.Name}'のmotion");
+        RequireAtMost(dto.Windows.Count, Limits.MaxWindowsPerMove, $"技'{dto.Name}'のwindows");
+
+        var (windows, hasThrowHit) = MapWindows(dto);
+        var motion = MapMotion(dto);
+        var (throwRange, throwSide, throwEndOffset) = MapThrowFields(dto, hasThrowHit);
+
+        return new MoveData
+        {
+            Name = dto.Name,
+            Command = dto.Command,
+            Kind = dto.Kind,
+            Posture = dto.Posture,
+            Startup = dto.Startup,
+            Active = dto.Active,
+            Recovery = dto.Recovery,
+            Tracking = dto.Tracking,
+            Height = dto.Height,
+            Damage = dto.Damage,
+            CounterDamage = dto.CounterDamage,
+            Hitstun = dto.Hitstun,
+            CounterHitstun = dto.CounterHitstun,
+            Blockstun = dto.Blockstun,
+            Hitstop = dto.Hitstop,
+            Knockdown = dto.Knockdown,
+            CounterKnockdown = dto.CounterKnockdown,
+            HitsDown = dto.HitsDown,
+            Pushback = Fix16.FromDecimal(dto.Pushback),
+            Motion = motion,
+            Windows = windows,
+            ThrowRange = throwRange,
+            ThrowSide = throwSide,
+            ThrowEndOffset = throwEndOffset,
+        };
+    }
+
+    private static void ValidateMoveBasics(MoveDataDto dto)
+    {
         if (!CommandPattern().IsMatch(dto.Command))
         {
             throw new GameDataFormatException($"技'{dto.Name}'のコマンド'{dto.Command}'が形に合いません。");
@@ -104,10 +144,10 @@ public static partial class GameDataLoader
         {
             throw new GameDataFormatException($"技'{dto.Name}'のtrackingはstartup以下が必要です。");
         }
+    }
 
-        RequireAtMost(dto.Motion.Count, Limits.MaxMotionSegmentsPerMove, $"技'{dto.Name}'のmotion");
-        RequireAtMost(dto.Windows.Count, Limits.MaxWindowsPerMove, $"技'{dto.Name}'のwindows");
-
+    private static (HitWindow[] Windows, bool HasThrowHit) MapWindows(MoveDataDto dto)
+    {
         var activeEnd = dto.Startup + dto.Active - 1;
         var windows = new HitWindow[dto.Windows.Count];
         var previousTo = -1;
@@ -149,6 +189,11 @@ public static partial class GameDataLoader
             };
         }
 
+        return (windows, hasThrowHit);
+    }
+
+    private static MotionSegment[] MapMotion(MoveDataDto dto)
+    {
         var motion = new MotionSegment[dto.Motion.Count];
         for (var i = 0; i < dto.Motion.Count; i++)
         {
@@ -161,53 +206,30 @@ public static partial class GameDataLoader
             motion[i] = new MotionSegment(m.From, m.To, Fix16.FromDecimal(m.ForwardPerFrame));
         }
 
-        Fix16 throwRange = default;
-        var throwSide = ThrowSide.Front;
-        Vec3Fix throwEndOffset = default;
-        if (dto.Kind == MoveKind.Throw)
+        return motion;
+    }
+
+    private static (Fix16 ThrowRange, ThrowSide ThrowSide, Vec3Fix ThrowEndOffset) MapThrowFields(MoveDataDto dto, bool hasThrowHit)
+    {
+        if (dto.Kind != MoveKind.Throw)
         {
-            if (dto.ThrowRange is null || dto.ThrowRange <= 0)
-            {
-                throw new GameDataFormatException($"投げ技'{dto.Name}'のthrowRangeは0より大きい値が必要です。");
-            }
-
-            if (hasThrowHit)
-            {
-                throw new GameDataFormatException($"投げ技'{dto.Name}'は攻撃判定を持てません。");
-            }
-
-            throwRange = Fix16.FromDecimal(dto.ThrowRange.Value);
-            throwSide = dto.ThrowSide ?? ThrowSide.Front;
-            throwEndOffset = dto.ThrowEndOffset is { } offset ? MapVec3(offset) : default;
+            return (default, ThrowSide.Front, default);
         }
 
-        return new MoveData
+        if (dto.ThrowRange is null || dto.ThrowRange <= 0)
         {
-            Name = dto.Name,
-            Command = dto.Command,
-            Kind = dto.Kind,
-            Posture = dto.Posture,
-            Startup = dto.Startup,
-            Active = dto.Active,
-            Recovery = dto.Recovery,
-            Tracking = dto.Tracking,
-            Height = dto.Height,
-            Damage = dto.Damage,
-            CounterDamage = dto.CounterDamage,
-            Hitstun = dto.Hitstun,
-            CounterHitstun = dto.CounterHitstun,
-            Blockstun = dto.Blockstun,
-            Hitstop = dto.Hitstop,
-            Knockdown = dto.Knockdown,
-            CounterKnockdown = dto.CounterKnockdown,
-            HitsDown = dto.HitsDown,
-            Pushback = Fix16.FromDecimal(dto.Pushback),
-            Motion = motion,
-            Windows = windows,
-            ThrowRange = throwRange,
-            ThrowSide = throwSide,
-            ThrowEndOffset = throwEndOffset,
-        };
+            throw new GameDataFormatException($"投げ技'{dto.Name}'のthrowRangeは0より大きい値が必要です。");
+        }
+
+        if (hasThrowHit)
+        {
+            throw new GameDataFormatException($"投げ技'{dto.Name}'は攻撃判定を持てません。");
+        }
+
+        var throwRange = Fix16.FromDecimal(dto.ThrowRange.Value);
+        var throwSide = dto.ThrowSide ?? ThrowSide.Front;
+        var throwEndOffset = dto.ThrowEndOffset is { } offset ? MapVec3(offset) : default;
+        return (throwRange, throwSide, throwEndOffset);
     }
 
     private static StageData MapStage(StageDataDto dto)

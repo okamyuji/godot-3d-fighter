@@ -44,6 +44,40 @@ public sealed class MatchSimulatorTests
         ],
     };
 
+    private static MoveData Launcher() => new()
+    {
+        Name = "launcher",
+        Command = "6K",
+        Kind = MoveKind.Strike,
+        Posture = Posture.Stand,
+        Startup = 5,
+        Active = 3,
+        Recovery = 8,
+        Tracking = 2,
+        Height = HitHeight.Mid,
+        Damage = 10,
+        CounterDamage = 15,
+        Hitstun = 12,
+        CounterHitstun = 16,
+        Blockstun = 6,
+        Hitstop = 4,
+        Knockdown = true,
+        CounterKnockdown = true,
+        HitsDown = false,
+        Pushback = Fix16.FromDecimal(0.2m),
+        Motion = [],
+        Windows =
+        [
+            new HitWindow
+            {
+                From = 5,
+                To = 7,
+                Hit = [new HitCapsule(new Vec3Fix(Fix16.FromDecimal(0.5m), Fix16.FromDecimal(1m), Fix16.Zero), new Vec3Fix(Fix16.FromDecimal(0.9m), Fix16.FromDecimal(1m), Fix16.Zero), Fix16.FromDecimal(0.15m))],
+                Hurt = [],
+            },
+        ],
+    };
+
     private static CharacterData Character() => new()
     {
         Name = "box",
@@ -63,7 +97,7 @@ public sealed class MatchSimulatorTests
         StandHurtCapsules = [new HitCapsule(new Vec3Fix(Fix16.Zero, Fix16.FromDecimal(0.2m), Fix16.Zero), new Vec3Fix(Fix16.Zero, Fix16.FromDecimal(1.5m), Fix16.Zero), Fix16.FromDecimal(0.3m))],
         CrouchHurtCapsules = [new HitCapsule(new Vec3Fix(Fix16.Zero, Fix16.FromDecimal(0.3m), Fix16.Zero), new Vec3Fix(Fix16.Zero, Fix16.FromDecimal(0.8m), Fix16.Zero), Fix16.FromDecimal(0.35m))],
         DownHurtCapsules = [new HitCapsule(new Vec3Fix(Fix16.FromDecimal(-0.8m), Fix16.FromDecimal(0.15m), Fix16.Zero), new Vec3Fix(Fix16.FromDecimal(0.8m), Fix16.FromDecimal(0.15m), Fix16.Zero), Fix16.FromDecimal(0.2m))],
-        Moves = [Jab()],
+        Moves = [Jab(), Launcher()],
     };
 
     private static StageData Stage() => new()
@@ -72,6 +106,15 @@ public sealed class MatchSimulatorTests
         Shape = RingShape.Square,
         Size = Fix16.FromDecimal(5m),
         Edges = [EdgeKind.RingOut, EdgeKind.RingOut, EdgeKind.RingOut, EdgeKind.RingOut],
+        StartDistance = Fix16.FromDecimal(2m),
+    };
+
+    private static StageData WallStage() => new()
+    {
+        Name = "wall",
+        Shape = RingShape.Square,
+        Size = Fix16.FromDecimal(5m),
+        Edges = [EdgeKind.Wall, EdgeKind.RingOut, EdgeKind.RingOut, EdgeKind.RingOut],
         StartDistance = Fix16.FromDecimal(2m),
     };
 
@@ -272,5 +315,199 @@ public sealed class MatchSimulatorTests
         state = MatchSimulator.Step(state, default, default, trainingContext);
 
         Assert.Equal(RoundPhase.Fight, state.Phase);
+    }
+
+    [Fact]
+    public void KnockdownMoveDealsDamageAndKnocksDefenderDown()
+    {
+        var context = Context();
+        var state = EnterFight(context);
+        state = state.WithPlayer(0, state.GetPlayer(0) with
+        {
+            Position = new Vec3Fix(Fix16.Zero, Fix16.Zero, Fix16.Zero),
+            State = StateKind.Attack,
+            CurrentMove = 1,
+            StateFrame = 4,
+        });
+        state = state.WithPlayer(1, state.GetPlayer(1) with
+        {
+            Position = new Vec3Fix(Fix16.FromDecimal(1m), Fix16.Zero, Fix16.Zero),
+        });
+        var startingHealth = state.GetPlayer(1).Health;
+
+        state = MatchSimulator.Step(state, default, default, context);
+
+        Assert.True(state.GetPlayer(1).Health < startingHealth);
+        Assert.Equal(StateKind.Down, state.GetPlayer(1).State);
+    }
+
+    [Fact]
+    public void HitPushedIntoAWallCausesWallStun()
+    {
+        var context = new MatchContext { Characters = [Character(), Character()], Stage = WallStage(), Rules = Rules() };
+        var state = EnterFight(context);
+        state = state.WithPlayer(0, state.GetPlayer(0) with
+        {
+            Position = new Vec3Fix(Fix16.FromDecimal(4.3m), Fix16.Zero, Fix16.Zero),
+            State = StateKind.Attack,
+            CurrentMove = 0,
+            StateFrame = 4,
+        });
+        state = state.WithPlayer(1, state.GetPlayer(1) with
+        {
+            Position = new Vec3Fix(Fix16.FromDecimal(4.6m), Fix16.Zero, Fix16.Zero),
+        });
+
+        state = MatchSimulator.Step(state, default, default, context);
+
+        Assert.Equal(StateKind.WallStun, state.GetPlayer(1).State);
+        Assert.True(state.GetPlayer(1).Flags.HasFlag(PlayerFlags.WallHitTaken));
+    }
+
+    [Fact]
+    public void DownPlayerRollsInOnFreshUpInput()
+    {
+        var context = Context();
+        var state = EnterFight(context);
+        state = state.WithPlayer(0, state.GetPlayer(0) with { State = StateKind.Down, StateFrame = 25 });
+
+        state = MatchSimulator.Step(state, new InputFrame(InputFrame.Up), default, context);
+
+        Assert.Equal(StateKind.RollIn, state.GetPlayer(0).State);
+    }
+
+    [Fact]
+    public void DownPlayerRollsOutOnFreshDownInput()
+    {
+        var context = Context();
+        var state = EnterFight(context);
+        state = state.WithPlayer(0, state.GetPlayer(0) with { State = StateKind.Down, StateFrame = 25 });
+
+        state = MatchSimulator.Step(state, new InputFrame(InputFrame.Down), default, context);
+
+        Assert.Equal(StateKind.RollOut, state.GetPlayer(0).State);
+    }
+
+    [Fact]
+    public void DownPlayerRisesOnFreshGuardPress()
+    {
+        var context = Context();
+        var state = EnterFight(context);
+        state = state.WithPlayer(0, state.GetPlayer(0) with { State = StateKind.Down, StateFrame = 25 });
+
+        state = MatchSimulator.Step(state, new InputFrame(InputFrame.Guard), default, context);
+
+        Assert.Equal(StateKind.Rise, state.GetPlayer(0).State);
+    }
+
+    [Fact]
+    public void DownPlayerStaysDownBeforeDownMinFrames()
+    {
+        var context = Context();
+        var state = EnterFight(context);
+        state = state.WithPlayer(0, state.GetPlayer(0) with { State = StateKind.Down, StateFrame = 5 });
+
+        state = MatchSimulator.Step(state, new InputFrame(InputFrame.Up), default, context);
+
+        Assert.Equal(StateKind.Down, state.GetPlayer(0).State);
+    }
+
+    [Fact]
+    public void DownPlayerTechQueuedWithoutDirectionEntersTech()
+    {
+        var context = Context();
+        var state = EnterFight(context);
+        state = state.WithPlayer(0, state.GetPlayer(0) with { State = StateKind.Down, StateFrame = 3 });
+
+        state = MatchSimulator.Step(
+            state, new InputFrame((byte)(InputFrame.Punch | InputFrame.Kick | InputFrame.Guard)), default, context);
+
+        Assert.Equal(StateKind.Tech, state.GetPlayer(0).State);
+    }
+
+    [Fact]
+    public void GuardInputEntersGuardState()
+    {
+        var context = Context();
+        var state = EnterFight(context);
+
+        state = MatchSimulator.Step(state, new InputFrame(InputFrame.Guard), default, context);
+
+        Assert.Equal(StateKind.Guard, state.GetPlayer(0).State);
+    }
+
+    [Fact]
+    public void GuardWithDownInputEntersCrouchGuardState()
+    {
+        var context = Context();
+        var state = EnterFight(context);
+
+        state = MatchSimulator.Step(state, new InputFrame((byte)(InputFrame.Guard | InputFrame.Down)), default, context);
+
+        Assert.Equal(StateKind.CrouchGuard, state.GetPlayer(0).State);
+    }
+
+    [Fact]
+    public void DownInputAloneEntersCrouchState()
+    {
+        var context = Context();
+        var state = EnterFight(context);
+
+        state = MatchSimulator.Step(state, new InputFrame(InputFrame.Down), default, context);
+
+        Assert.Equal(StateKind.Crouch, state.GetPlayer(0).State);
+    }
+
+    [Fact]
+    public void BackwardInputEntersBackWalkState()
+    {
+        var context = Context();
+        var state = EnterFight(context);
+
+        state = MatchSimulator.Step(state, new InputFrame(InputFrame.Left), default, context);
+
+        Assert.Equal(StateKind.BackWalk, state.GetPlayer(0).State);
+    }
+
+    [Theory]
+    [InlineData(StateKind.Dash, (ushort)16)]
+    [InlineData(StateKind.Backdash, (ushort)18)]
+    [InlineData(StateKind.SidestepIn, (ushort)18)]
+    [InlineData(StateKind.SidestepOut, (ushort)18)]
+    [InlineData(StateKind.ThrowEscape, (ushort)20)]
+    [InlineData(StateKind.Tech, (ushort)20)]
+    public void TimedStateReturnsToIdleAfterItsDuration(StateKind state, ushort frames)
+    {
+        var context = Context();
+        var matchState = EnterFight(context);
+        matchState = matchState.WithPlayer(0, matchState.GetPlayer(0) with { State = state, StateFrame = frames });
+
+        matchState = MatchSimulator.Step(matchState, default, default, context);
+
+        Assert.Equal(StateKind.Idle, matchState.GetPlayer(0).State);
+    }
+
+    [Fact]
+    public void HitstunEndsWhenStunFramesReachZero()
+    {
+        var context = Context();
+        var state = EnterFight(context);
+        state = state.WithPlayer(0, state.GetPlayer(0) with { State = StateKind.Hitstun, StunFrames = 1 });
+
+        state = MatchSimulator.Step(state, default, default, context);
+
+        Assert.Equal(StateKind.Idle, state.GetPlayer(0).State);
+    }
+
+    [Fact]
+    public void RollInEndsInRiseAfterRollFrames()
+    {
+        var context = Context();
+        var state = EnterFight(context);
+        state = state.WithPlayer(0, state.GetPlayer(0) with { State = StateKind.RollIn, StateFrame = 24 });
+
+        state = MatchSimulator.Step(state, default, default, context);
+
+        Assert.Equal(StateKind.Rise, state.GetPlayer(0).State);
     }
 }

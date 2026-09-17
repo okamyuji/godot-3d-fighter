@@ -38,17 +38,9 @@ public static class HitResolver
             return default;
         }
 
-        var isDown = defender.State is StateKind.Down or StateKind.RollIn or StateKind.RollOut;
-        if (isDown)
+        if (defender.State is StateKind.Down or StateKind.RollIn or StateKind.RollOut)
         {
-            if (!move.HitsDown || defender.Flags.HasFlag(PlayerFlags.DownHitTaken))
-            {
-                return default;
-            }
-
-            return Overlaps(attacker.Position, attacker.Facing, window.Hit, defender.Position, defender.Facing, defenderCharacter.DownHurtCapsules)
-                ? new HitOutcome(HitOutcomeKind.DownHit, move)
-                : default;
+            return DetectDownHit(attacker, defender, defenderCharacter, window, move);
         }
 
         if (defender.State is StateKind.Throwing or StateKind.Thrown or StateKind.Dead)
@@ -62,6 +54,24 @@ public static class HitResolver
             return default;
         }
 
+        return DetectStandingHit(defender, defenderCharacter, move);
+    }
+
+    private static HitOutcome DetectDownHit(
+        in PlayerState attacker, in PlayerState defender, CharacterData defenderCharacter, HitWindow window, MoveData move)
+    {
+        if (!move.HitsDown || defender.Flags.HasFlag(PlayerFlags.DownHitTaken))
+        {
+            return default;
+        }
+
+        return Overlaps(attacker.Position, attacker.Facing, window.Hit, defender.Position, defender.Facing, defenderCharacter.DownHurtCapsules)
+            ? new HitOutcome(HitOutcomeKind.DownHit, move)
+            : default;
+    }
+
+    private static HitOutcome DetectStandingHit(in PlayerState defender, CharacterData defenderCharacter, MoveData move)
+    {
         if (GuardMatrix.IsGuarded(move.Height, defender.State))
         {
             return new HitOutcome(HitOutcomeKind.Guarded, move);

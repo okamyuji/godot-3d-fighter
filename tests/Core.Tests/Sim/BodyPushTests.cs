@@ -18,6 +18,15 @@ public sealed class BodyPushTests
         StartDistance = Fix16.FromDecimal(2m),
     };
 
+    private static StageData NarrowStage(decimal size) => new()
+    {
+        Name = "narrow",
+        Shape = RingShape.Square,
+        Size = Fix16.FromDecimal(size),
+        Edges = [EdgeKind.Wall, EdgeKind.Wall, EdgeKind.Wall, EdgeKind.Wall],
+        StartDistance = Fix16.FromDecimal(2m),
+    };
+
     private static long DistSq(Vec3Fix a, Vec3Fix b) => a.HorizontalDistanceSquared(b);
 
     [Fact]
@@ -78,5 +87,34 @@ public sealed class BodyPushTests
             var minAllowed = (long)(radiusSum.Raw - 1) * (radiusSum.Raw - 1);
             Assert.True(resultDistSq >= minAllowed, $"dx={dx}: distSq={resultDistSq} min={minAllowed} radiusSumSq={radiusSumSq}");
         }
+    }
+
+    [Fact]
+    public void OnePlayerClampedByWallStillSeparatesFromTheOther()
+    {
+        var a = P(0.65m, 0);
+        var b = P(0.55m, 0);
+        var radius = Fix16.FromDecimal(0.3m);
+        var radiusSum = radius + radius;
+
+        var (rA, rB) = BodyPush.Resolve(a, b, a, b, radius, radius, new Angle16(0), true, NarrowStage(1.0m), eitherThrowing: false);
+
+        var minAllowed = (long)(radiusSum.Raw - 1) * (radiusSum.Raw - 1);
+        Assert.True(DistSq(rA, rB) >= minAllowed);
+    }
+
+    [Fact]
+    public void BothPlayersClampedByWallsKeepsPositionsBeforeMovement()
+    {
+        var beforeA = P(-0.02m, 0);
+        var beforeB = P(0.02m, 0);
+        var afterA = P(-0.05m, 0);
+        var afterB = P(0.05m, 0);
+        var radius = Fix16.FromDecimal(0.3m);
+
+        var (rA, rB) = BodyPush.Resolve(beforeA, beforeB, afterA, afterB, radius, radius, new Angle16(0), true, NarrowStage(0.31m), eitherThrowing: false);
+
+        Assert.Equal(beforeA, rA);
+        Assert.Equal(beforeB, rB);
     }
 }

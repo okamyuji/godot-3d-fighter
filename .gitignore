@@ -10,6 +10,7 @@ obj/
 TestResults/
 StrykerOutput/
 coverage/
+crap.json
 
 # OS / editor
 .DS_Store
