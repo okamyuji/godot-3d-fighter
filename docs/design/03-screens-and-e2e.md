@@ -22,9 +22,11 @@ public interface IE2eScreen
 | `Result` | `scenes/Result.tscn` | 勝者か引き分け、各ラウンドの決着の理由と勝者 | `Confirm`でタイトルへ |
 | `Training` | `scenes/Training.tscn` | `Match`の表示に加え、フレーム差、2人の状態名と`StateFrame`、相手の動作の設定 | `ResetPositions`、`DummyStand`、`DummyCrouch`、`DummyGuardAll`、`Exit`（タイトルへ） |
 
-試合とトレーニングの画面は、`_PhysicsProcess`で`MatchSimulator.Step`を1回呼び、状態を描画に反映します。試合は`data/rules.json`、トレーニングは`data/rules-training.json`の規則を使います。`project.godot`の`physics_ticks_per_second`は60です。キャラは箱で表し、位置と向きは`FixConvert`で`Vector3`と回転に変換します。
+試合とトレーニングの画面は、`_PhysicsProcess`で`MatchSimulator.Step`を1回呼び、状態を描画に反映します。試合は`data/rules.json`、トレーニングは`data/rules-training.json`の規則を使います。`project.godot`の`physics_ticks_per_second`は60です。キャラは頭、胴、両腕（上腕と前腕）、両脚（大腿と下腿）の図形（ADR-0025）で表し、位置と向きは`FixConvert`で`Vector3`と回転に変換します。攻撃の判定区間では、技のコマンドがPなら右腕、Kなら右脚の先端を、区間の最初の攻撃カプセルの`B`へ伸ばし、その手足を明るい色にします。発生中は構えから最初の区間の`B`へ、硬直中は最後の区間の`B`から構えへ、フレーム数で補間します。投げは判定区間を持たないので、技の間と`Throwing`と`Thrown`の間は両腕を前へ伸ばした固定の姿勢にし、技の間は両腕を明るい色にします。当たった側は6フレーム白くします。カメラはADR-0016のとおり、2人の足元の中点から`CameraYaw - 16384`の方向へ4.5m離れた高さ1.6mに置き、中点の1m上を見ます。
 
 リザルトに出す各ラウンドの結果は、試合画面が`Phase`の`RoundEnd`への変化を見て、`LastRoundReason`と`LastRoundWinners`を記録したものです。
+
+試合とトレーニングの画面は、HUDに出している文字列（体力、残り時間、ラウンド番号と勝ち数、決着の理由、`COUNTER`、`WALL`、`COUNTER WALL`）を空白で連結した`HudText`を`IE2eMatchState`で公開します。
 
 ## 入力
 
@@ -88,6 +90,7 @@ godot --headless --path . -- --check-flows
 | `expectScreen` | 表示中の画面の`ScreenName`が一致するまで最大`withinFrames`フレーム待つ |
 | `action` | 表示中の画面の`TryInvoke`を呼ぶ。falseなら失敗 |
 | `expectPhase` | 試合かトレーニングの`Phase`が一致するまで待つ |
+| `expectHud` | 試合かトレーニングの`HudText`が文字列を含むまで待つ |
 | `frames` | `p1`と`p2`の入力を`frames`フレーム続けて与える。入力は画面上の絶対的な方向の数字（6が右）と、押し続けるボタン（P、K、G）の並び |
 | `expectRoundEnd` | `LastRoundReason`と`LastRoundWinners`（1がP1、2がP2）が一致する`RoundEnd`まで待つ |
 | `expectMatchEnd` | `MatchEnd`になり、勝者の一覧が一致するまで待つ。引き分けは空の一覧 |
@@ -102,9 +105,9 @@ godot --headless --path . -- --check-flows
 |---|---|---|---|
 | F-01 | `f01-title.json` | 無し | タイトルの表示を待つ |
 | F-02 | `f02-start-match.json` | 無し | 対戦を選び、2人が決定し、`Fight`を待つ |
-| F-03 | `f03-knockout.json` | `rules-e2e.json` | P1が近づいて打撃を繰り返し、KOでP1の勝ちを待つ |
-| F-04 | `f04-ringout.json` | `rules-e2e.json`、`stage-e2e.json` | P2が後ろ（画面の右）へ歩き続け、リングアウトでP1の勝ちを待つ |
-| F-05 | `f05-timeup.json` | `rules-timeup.json` | 入力しないまま時間切れを待ち、2人の勝ちと引き分けの試合終了を待つ |
+| F-03 | `f03-knockout.json` | `rules-e2e.json` | P1が近づいて打撃を繰り返し、KOでP1の勝ちを待つ、`KO`の表示を待つ |
+| F-04 | `f04-ringout.json` | `rules-e2e.json`、`stage-e2e.json` | P2が後ろ（画面の右）へ歩き続け、リングアウトでP1の勝ちを待つ、`RING OUT`の表示を待つ |
+| F-05 | `f05-timeup.json` | `rules-timeup.json` | 入力しないまま時間切れを待ち、2人の勝ちと引き分けの試合終了を待つ、`TIME UP`の表示を待つ |
 | F-06 | `f06-result-to-title.json` | `rules-e2e.json` | F-03と同じ手順で試合を終え、リザルトで`Confirm`し、タイトルを待つ |
 | F-07 | `f07-training.json` | 無し | トレーニングを選び、`DummyGuardAll`で打撃を出し、`ResetPositions`、`Exit`でタイトルを待つ |
 

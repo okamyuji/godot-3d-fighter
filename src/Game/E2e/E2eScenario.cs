@@ -32,6 +32,9 @@ internal sealed class E2eStep
     [JsonPropertyName("expectPhase")]
     public string? ExpectPhase { get; init; }
 
+    [JsonPropertyName("expectHud")]
+    public string? ExpectHud { get; init; }
+
     [JsonPropertyName("frames")]
     public int? Frames { get; init; }
 
