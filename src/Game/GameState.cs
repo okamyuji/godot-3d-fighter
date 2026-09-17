@@ -85,8 +85,13 @@ public sealed partial class GameState : Node
         return GameDataLoader.LoadRules(stream);
     }
 
-    private static FileStream OpenRead(string resPath) =>
-        File.OpenRead(ProjectSettings.GlobalizePath(resPath));
+    /// <summary>エクスポートした実行ファイルではres://の中身がPCKの中にあり、System.IOでは開けないため、GodotのFileAccessで読む。</summary>
+    private static MemoryStream OpenRead(string resPath)
+    {
+        using var file = Godot.FileAccess.Open(resPath, Godot.FileAccess.ModeFlags.Read)
+            ?? throw new FileNotFoundException("データファイルを開けません。理由:" + Godot.FileAccess.GetOpenError(), resPath);
+        return new MemoryStream(file.GetBuffer((long)file.GetLength()));
+    }
 
     public static void GoTo(SceneTree tree, string scenePath)
     {

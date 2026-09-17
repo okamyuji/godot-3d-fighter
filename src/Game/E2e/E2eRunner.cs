@@ -94,12 +94,14 @@ public sealed partial class E2eRunner : Node
         GetTree().Quit(0);
     }
 
-    private void StartScenario(string relativePath)
+    private void StartScenario(string scenarioPath)
     {
-        var scenario = ReadJson<E2eScenario>(ToResPath(relativePath));
+        var scenario = Path.IsPathRooted(scenarioPath)
+            ? ReadJsonFile<E2eScenario>(scenarioPath)
+            : ReadJson<E2eScenario>(ToResPath(scenarioPath));
         if (scenario is null)
         {
-            GD.PrintErr("シナリオ'" + relativePath + "'を読み込めませんでした。");
+            GD.PrintErr("シナリオ'" + scenarioPath + "'を読み込めませんでした。");
             GetTree().Quit(1);
             return;
         }
