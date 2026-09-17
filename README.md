@@ -49,6 +49,20 @@ git config core.hooksPath .githooks
 └── docs/           # ADR、設計書
 ```
 
+## リリースビルド（macOS）
+
+書き出しには4.7.2のエクスポートテンプレートが必要です。Godotエディタの「エディター」メニューにある「エクスポートテンプレートの管理」から導入してください。macOS向けのプリセットは`export_presets.cfg`にあり、次のコマンドで`.app`を書き出せます。
+
+```sh
+/Applications/Godot_mono.app/Contents/MacOS/Godot --headless --path . --export-release macOS export/Godot3dFighter.app
+```
+
+プリセットは署名を行わず、書き出した`.app`はGodot公式テンプレートの署名のまま手元で起動できます。配布するにはDeveloper IDでの署名と公証が別途必要になります。書き出した実行ファイルでも主要導線を走らせられます。その場合、シナリオは絶対パスで渡します。
+
+```sh
+export/Godot3dFighter.app/Contents/MacOS/godot-3d-fighter --headless --fixed-fps 60 -- --e2e "$PWD/tests/e2e/scenarios/f03-knockout.json"
+```
+
 ## テストとCI
 
 ```sh
