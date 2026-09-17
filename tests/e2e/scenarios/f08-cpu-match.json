@@ -5,6 +5,7 @@
     { "expectScreen": "Title", "withinFrames": 120 },
     { "action": "Versus" },
     { "expectScreen": "CharacterSelect", "withinFrames": 60 },
+    { "action": "NextCpuLevel" },
     { "action": "ConfirmP1" },
     { "expectPhase": "Fight", "withinFrames": 400 },
     { "frames": 1, "p1": "5", "p2": "5" },

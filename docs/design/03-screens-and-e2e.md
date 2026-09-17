@@ -17,7 +17,7 @@ public interface IE2eScreen
 | 画面 | シーン | 表示する情報 | 操作と遷移 |
 |---|---|---|---|
 | `Title` | `scenes/Title.tscn` | タイトル、「対戦」「トレーニング」の選択肢 | `Versus`で対戦のキャラ選択へ、`Training`でトレーニングのキャラ選択へ |
-| `CharacterSelect` | `scenes/CharacterSelect.tscn` | 2人の選択中のキャラ名、決定済みかどうか、P2がCPUになるまでの秒数、選択中のステージ名 | `NextStage`でステージを`data/stages/`のファイル名の順に切り替え、`ConfirmP1`と`ConfirmP2`が両方そろうと試合へ、対戦で`ConfirmP1`だけなら180フレームのカウントダウンの後にP2をCPUにして試合へ（ADR-0026）、トレーニングは`ConfirmP1`だけでトレーニングへ、`Back`でタイトルへ |
+| `CharacterSelect` | `scenes/CharacterSelect.tscn` | 2人の選択中のキャラ名、決定済みかどうか、P2がCPUになるまでの秒数、選択中のステージ名、CPUの手強さ | `NextStage`でステージを`data/stages/`のファイル名の順に切り替え、`NextCpuLevel`でCPUの手強さをやさしい、ふつう、つよいの順に切り替え、`ConfirmP1`と`ConfirmP2`が両方そろうと試合へ、対戦で`ConfirmP1`だけなら180フレームのカウントダウンの後にP2をCPUにして試合へ（ADR-0026）、トレーニングは`ConfirmP1`だけでトレーニングへ、`Back`でタイトルへ |
 | `Match` | `scenes/Match.tscn` | 体力ゲージ、残り時間（秒、切り上げ）、勝ち数、ラウンド番号、決着の理由（KO、RING OUT、TIME UP）、カウンターヒットと壁やられの表示 | 試合が`MatchEnd`になり`RoundEndFrames`が経つとリザルトへ |
 | `Result` | `scenes/Result.tscn` | 勝者か引き分け、各ラウンドの決着の理由と勝者 | `Confirm`でタイトルへ |
 | `Training` | `scenes/Training.tscn` | `Match`の表示に加え、フレーム差、2人の状態名と`StateFrame`、相手の動作の設定 | `ResetPositions`、`DummyStand`、`DummyCrouch`、`DummyGuardAll`、`Exit`（タイトルへ） |
@@ -44,12 +44,12 @@ public interface IE2eScreen
 | 画面 | キー |
 |---|---|
 | `Title`、`Result` | `p1_up`と`p1_down`でフォーカスを移し、`p1_punch`か`p2_punch`でフォーカス中のボタンを押す（`MenuKeys`）。矢印キーとEnterはGodotの既定のフォーカス移動で動く |
-| `CharacterSelect` | `p1_punch`で`ConfirmP1`、`p2_punch`で`ConfirmP2`、`p1_kick`か`p2_kick`で`NextStage`、`ui_cancel`（Esc）で`Back` |
+| `CharacterSelect` | `p1_punch`で`ConfirmP1`、`p2_punch`で`ConfirmP2`、`p1_kick`か`p2_kick`で`NextStage`、`p1_guard`で`NextCpuLevel`、`ui_cancel`（Esc）で`Back` |
 | `Training` | `ui_cancel`（Esc）で`Exit` |
 
 ## CPUの相手
 
-対戦でP1だけが決定すると、キャラ選択は180フレームのカウントダウンを表示します。その間に`ConfirmP2`があれば人間のP2として始め、無ければ`GameState.P2IsCpu`を立てて試合へ進みます。試合画面は`P2IsCpu`なら、`InputMapper`を読まずに`CpuPolicy.Decide`（ADR-0026）の入力をP2に渡します。主要導線の`frames`手順の`p2`は、P2がCPUの間は無視されます。
+対戦でP1だけが決定すると、キャラ選択は180フレームのカウントダウンを表示します。その間に`ConfirmP2`があれば人間のP2として始め、無ければ`GameState.P2IsCpu`を立てて試合へ進みます。試合画面は`P2IsCpu`なら、`InputMapper`を読まずに`CpuPolicy.Decide`（ADR-0026）の入力をP2に渡します。手強さは`GameState.CpuLevel`で、既定は「ふつう」です。主要導線の`frames`手順の`p2`は、P2がCPUの間は無視されます。
 
 ## トレーニング
 
