@@ -28,5 +28,5 @@
 ## 影響
 
 - 入力の送受信量は1プレイヤー1フレーム1バイトです。
-- 制約条件C-04として「Coreに入る`InputFrame`は正規化済みで、ビット7は0」を置き、`InputFrameTests`で確かめます。
-- 制約条件C-05として「`InputBuffer`は直近64フレームを保持し、65フレーム前の値は参照できない」を置き、`InputBufferTests`で境界を確かめます。
+- 不変条件C-04として「Coreに入る`InputFrame`は正規化済みで、ビット7は0」を置き、`InputFrameTests`で確かめます。
+- 不変条件C-05として「`InputBuffer`は直近64フレームを保持し、65フレーム前の値は参照できない」を置き、`InputBufferTests`で境界を確かめます。

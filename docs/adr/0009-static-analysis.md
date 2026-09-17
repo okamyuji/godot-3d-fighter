@@ -31,4 +31,4 @@
 
 - 警告が1つでもあればビルドが失敗し、pre-commitとCIで止まります。
 - Coreでは`Math`の整数版（`Math.Abs(int)`など）も使えないため、必要な補助関数は`Fix16`と`IntMath`に持ちます。
-- `float`と`double`は型として禁止できないため、制約条件C-14として「`Core`の公開APIの引数と戻り値に`float`と`double`が現れない」を置き、`PublicApiTests`でリフレクションにより確かめます。
+- `float`と`double`は型として禁止できないため、不変条件C-14として「`Core`の公開APIの引数と戻り値に`float`と`double`が現れない」を置き、`PublicApiTests`でリフレクションにより確かめます。

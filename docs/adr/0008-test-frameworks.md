@@ -48,4 +48,4 @@
 
 - 判定やフレーム計算のテストはGodotを起動せずに`dotnet test`で回ります。
 - 主要導線の走破はGodot本体を必要とするため、CIと手動で回します。pre-commitには入れません（ADR-0011）。
-- 制約条件C-13として「`flows.json`の全導線に対応するシナリオが存在する」を置き、`E2eRunner --check-flows`で確かめます。
+- 不変条件C-13として「`flows.json`の全導線に対応するシナリオが存在する」を置き、`E2eRunner --check-flows`で確かめます。

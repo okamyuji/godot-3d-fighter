@@ -4,8 +4,8 @@
 
 ## 読む順番
 
-1. 全ADRの一覧と、各ADRが満たす制約条件（C番号）は`docs/adr/README.md`
-2. 実装の順序と、制約条件とテストの対応表は`docs/design/README.md`
+1. 全ADRの一覧と、各ADRが満たす不変条件（C番号）は`docs/adr/README.md`
+2. 実装の順序と、不変条件とテストの対応表は`docs/design/README.md`
 3. 型、試合の処理、画面の詳細は`docs/design/01-data-structures.md`、`02-match-rules.md`、`03-screens-and-e2e.md`
 
 ## 作業の進め方
