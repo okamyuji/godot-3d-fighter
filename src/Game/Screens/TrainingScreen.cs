@@ -25,6 +25,15 @@ public sealed partial class TrainingScreen : FightScreenBase, IE2eScreen
         AddToGroup("e2e_screen");
     }
 
+    public override void _UnhandledInput(Godot.InputEvent @event)
+    {
+        System.ArgumentNullException.ThrowIfNull(@event);
+        if (@event.IsActionPressed("ui_cancel"))
+        {
+            TryInvoke("Exit");
+        }
+    }
+
     public bool TryInvoke(string action)
     {
         switch (action)

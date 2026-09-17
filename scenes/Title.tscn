@@ -42,5 +42,10 @@ text = "対戦"
 layout_mode = 2
 text = "トレーニング"
 
+[node name="HintLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+horizontal_alignment = 1
+text = "W/S:選ぶ  J:決める"
+
 [connection signal="pressed" from="VBoxContainer/VersusButton" to="." method="OnVersusPressed"]
 [connection signal="pressed" from="VBoxContainer/TrainingButton" to="." method="OnTrainingPressed"]
