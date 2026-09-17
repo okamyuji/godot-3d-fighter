@@ -577,7 +577,7 @@ public static class MatchSimulator
         var pushDirection = HorizontalUnit(defender.Position - attacker.Position, attacker.Facing);
         var pushed = defender.Position + (pushDirection * move.Pushback);
         var pushedFinal = PositionFinalizer.Finalize(pushed, context.Characters[defender.Slot].BodyRadius, context.Stage);
-        var crouching = defender.State == StateKind.CrouchGuard;
+        var crouching = defender.State is StateKind.CrouchGuard or StateKind.CrouchBlockstun;
         return defender with
         {
             State = crouching ? StateKind.CrouchBlockstun : StateKind.Blockstun,
