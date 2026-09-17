@@ -15,31 +15,45 @@ public sealed class CpuPolicyTests
     private const byte LowKickIndex = 1;
     private const byte LauncherIndex = 2;
     private const byte ThrowIndex = 3;
+    private const byte PunchGuard = InputFrame.Punch | InputFrame.Guard;
+    private const byte LeftKick = InputFrame.Left | InputFrame.Kick;
 
     [Fact]
     public void ThrowsOnNullContext()
     {
         var state = default(MatchState);
 
-        Assert.Throws<ArgumentNullException>(() => CpuPolicy.Decide(state, null!, Cpu));
+        Assert.Throws<ArgumentNullException>(() => CpuPolicy.Decide(state, null!, Cpu, CpuLevel.Normal));
     }
 
     [Theory]
     [InlineData(HitHeight.High, InputFrame.Guard)]
     [InlineData(HitHeight.Mid, InputFrame.Guard)]
     [InlineData(HitHeight.Low, InputFrame.Guard | InputFrame.Down)]
-    public void GuardsByTheHeightOfTheOpponentsStrikeEvenOnADecisionFrame(HitHeight height, int expectedBits)
+    public void NormalGuardsByTheHeightOfTheOpponentsStrikeEvenOnADecisionFrame(HitHeight height, int expectedBits)
     {
         var context = Context();
-        var moveIndex = height switch
-        {
-            HitHeight.High => JabIndex,
-            HitHeight.Mid => LauncherIndex,
-            _ => LowKickIndex,
-        };
-        var state = Attacking(InRange(context, frameNumber: 0), moveIndex);
+        var state = Attacking(InRange(context, frameNumber: 0), MoveIndexOf(height));
 
-        Assert.Equal(new InputFrame((byte)expectedBits), CpuPolicy.Decide(state, context, Cpu));
+        Assert.Equal(new InputFrame((byte)expectedBits), CpuPolicy.Decide(state, context, Cpu, CpuLevel.Normal));
+    }
+
+    [Fact]
+    public void HardGuardsLikeNormal()
+    {
+        var context = Context();
+        var state = Attacking(InRange(context, frameNumber: 1), LowKickIndex);
+
+        Assert.Equal(new InputFrame(InputFrame.Guard | InputFrame.Down), CpuPolicy.Decide(state, context, Cpu, CpuLevel.Hard));
+    }
+
+    [Fact]
+    public void EasyDoesNotGuard()
+    {
+        var context = Context();
+        var state = Attacking(InRange(context, frameNumber: 1), JabIndex);
+
+        Assert.Equal(default, CpuPolicy.Decide(state, context, Cpu, CpuLevel.Easy));
     }
 
     [Fact]
@@ -48,7 +62,7 @@ public sealed class CpuPolicyTests
         var context = Context();
         var state = Attacking(InRange(context, frameNumber: 1), ThrowIndex);
 
-        Assert.Equal(default, CpuPolicy.Decide(state, context, Cpu));
+        Assert.Equal(default, CpuPolicy.Decide(state, context, Cpu, CpuLevel.Normal));
     }
 
     [Fact]
@@ -57,7 +71,64 @@ public sealed class CpuPolicyTests
         var context = Context();
         var state = Attacking(InRange(context, frameNumber: 1), Limits.NoMove);
 
-        Assert.Equal(default, CpuPolicy.Decide(state, context, Cpu));
+        Assert.Equal(default, CpuPolicy.Decide(state, context, Cpu, CpuLevel.Normal));
+    }
+
+    [Theory]
+    [InlineData(CpuLevel.Easy, StateKind.Blockstun)]
+    [InlineData(CpuLevel.Normal, StateKind.Blockstun)]
+    [InlineData(CpuLevel.Normal, StateKind.CrouchBlockstun)]
+    [InlineData(CpuLevel.Hard, StateKind.CrouchBlockstun)]
+    public void WaitsWhileTheOpponentIsInBlockstunEvenOnADecisionFrame(CpuLevel level, StateKind opponentState)
+    {
+        var context = Context();
+        var state = OpponentIn(InRange(context, frameNumber: 0), opponentState);
+
+        Assert.Equal(default, CpuPolicy.Decide(state, context, Cpu, level));
+    }
+
+    [Theory]
+    [InlineData(CpuLevel.Normal, StateKind.Guard, PunchGuard)]
+    [InlineData(CpuLevel.Hard, StateKind.Guard, PunchGuard)]
+    [InlineData(CpuLevel.Normal, StateKind.CrouchGuard, LeftKick)]
+    [InlineData(CpuLevel.Hard, StateKind.CrouchGuard, LeftKick)]
+    public void BreaksAGuardWithAThrowOrAMidOnADecisionFrame(CpuLevel level, StateKind opponentState, int expectedBits)
+    {
+        var context = Context();
+        var state = OpponentIn(InRange(context, frameNumber: 0), opponentState);
+
+        Assert.Equal(new InputFrame((byte)expectedBits), CpuPolicy.Decide(state, context, Cpu, level));
+    }
+
+    [Fact]
+    public void EasyDoesNotBreakAGuard()
+    {
+        var context = Context();
+        var state = OpponentIn(InRange(context, frameNumber: 0), StateKind.Guard);
+
+        Assert.Equal(new InputFrame(InputFrame.Punch), CpuPolicy.Decide(state, context, Cpu, CpuLevel.Easy));
+    }
+
+    [Fact]
+    public void HardPressesTheThrowCommandWhileThrown()
+    {
+        var context = Context();
+        var state = InRange(context, frameNumber: 1);
+        state = state.WithPlayer(Cpu, state.GetPlayer(Cpu) with { State = StateKind.Thrown });
+
+        Assert.Equal(new InputFrame(PunchGuard), CpuPolicy.Decide(state, context, Cpu, CpuLevel.Hard));
+    }
+
+    [Theory]
+    [InlineData(CpuLevel.Easy)]
+    [InlineData(CpuLevel.Normal)]
+    public void EasyAndNormalDoNotEscapeThrows(CpuLevel level)
+    {
+        var context = Context();
+        var state = InRange(context, frameNumber: 1);
+        state = state.WithPlayer(Cpu, state.GetPlayer(Cpu) with { State = StateKind.Thrown });
+
+        Assert.Equal(default, CpuPolicy.Decide(state, context, Cpu, level));
     }
 
     [Fact]
@@ -66,7 +137,7 @@ public sealed class CpuPolicyTests
         var context = Context();
         var state = MatchSimulator.CreateMatch(context);
 
-        Assert.Equal(new InputFrame(InputFrame.Left), CpuPolicy.Decide(state, context, Cpu));
+        Assert.Equal(new InputFrame(InputFrame.Left), CpuPolicy.Decide(state, context, Cpu, CpuLevel.Normal));
     }
 
     [Fact]
@@ -75,7 +146,7 @@ public sealed class CpuPolicyTests
         var context = Context();
         var state = Swapped(MatchSimulator.CreateMatch(context));
 
-        Assert.Equal(new InputFrame(InputFrame.Right), CpuPolicy.Decide(state, context, Cpu));
+        Assert.Equal(new InputFrame(InputFrame.Right), CpuPolicy.Decide(state, context, Cpu, CpuLevel.Normal));
     }
 
     [Fact]
@@ -84,33 +155,40 @@ public sealed class CpuPolicyTests
         var context = Context();
         var state = MatchSimulator.CreateMatch(context);
 
-        Assert.Equal(new InputFrame(InputFrame.Right), CpuPolicy.Decide(state, context, 0));
+        Assert.Equal(new InputFrame(InputFrame.Right), CpuPolicy.Decide(state, context, 0, CpuLevel.Normal));
     }
 
     [Theory]
-    [InlineData(0u, InputFrame.Punch)]
-    [InlineData(8u, InputFrame.Kick)]
-    [InlineData(16u, InputFrame.Left | InputFrame.Kick)]
-    [InlineData(24u, InputFrame.Punch | InputFrame.Guard)]
-    [InlineData(32u, InputFrame.Punch)]
-    public void CyclesThroughJabLowKickLauncherAndThrowOnDecisionFrames(uint frameNumber, int expectedBits)
+    [InlineData(CpuLevel.Normal, 0u, InputFrame.Punch)]
+    [InlineData(CpuLevel.Normal, 8u, InputFrame.Kick)]
+    [InlineData(CpuLevel.Normal, 16u, LeftKick)]
+    [InlineData(CpuLevel.Normal, 24u, PunchGuard)]
+    [InlineData(CpuLevel.Normal, 32u, InputFrame.Punch)]
+    [InlineData(CpuLevel.Hard, 8u, InputFrame.Kick)]
+    [InlineData(CpuLevel.Easy, 0u, InputFrame.Punch)]
+    [InlineData(CpuLevel.Easy, 24u, InputFrame.Kick)]
+    [InlineData(CpuLevel.Easy, 48u, LeftKick)]
+    [InlineData(CpuLevel.Easy, 72u, PunchGuard)]
+    public void CyclesThroughJabLowKickLauncherAndThrowOnDecisionFrames(CpuLevel level, uint frameNumber, int expectedBits)
     {
         var context = Context();
         var state = InRange(context, frameNumber);
 
-        Assert.Equal(new InputFrame((byte)expectedBits), CpuPolicy.Decide(state, context, Cpu));
+        Assert.Equal(new InputFrame((byte)expectedBits), CpuPolicy.Decide(state, context, Cpu, level));
     }
 
     [Theory]
-    [InlineData(1u)]
-    [InlineData(7u)]
-    [InlineData(9u)]
-    public void WaitsBetweenDecisionFramesWhenInRange(uint frameNumber)
+    [InlineData(CpuLevel.Normal, 1u)]
+    [InlineData(CpuLevel.Normal, 7u)]
+    [InlineData(CpuLevel.Normal, 9u)]
+    [InlineData(CpuLevel.Easy, 8u)]
+    [InlineData(CpuLevel.Easy, 23u)]
+    public void WaitsBetweenDecisionFramesWhenInRange(CpuLevel level, uint frameNumber)
     {
         var context = Context();
         var state = InRange(context, frameNumber);
 
-        Assert.Equal(default, CpuPolicy.Decide(state, context, Cpu));
+        Assert.Equal(default, CpuPolicy.Decide(state, context, Cpu, level));
     }
 
     [Fact]
@@ -119,7 +197,7 @@ public sealed class CpuPolicyTests
         var context = Context();
         var state = AtDistance(MatchSimulator.CreateMatch(context), CpuPolicy.AttackDistance);
 
-        Assert.Equal(new InputFrame(InputFrame.Punch), CpuPolicy.Decide(state, context, Cpu));
+        Assert.Equal(new InputFrame(InputFrame.Punch), CpuPolicy.Decide(state, context, Cpu, CpuLevel.Normal));
     }
 
     [Fact]
@@ -128,18 +206,21 @@ public sealed class CpuPolicyTests
         var context = Context();
         var state = AtDistance(MatchSimulator.CreateMatch(context), new Fix16(CpuPolicy.AttackDistance.Raw + 1));
 
-        Assert.Equal(new InputFrame(InputFrame.Left), CpuPolicy.Decide(state, context, Cpu));
+        Assert.Equal(new InputFrame(InputFrame.Left), CpuPolicy.Decide(state, context, Cpu, CpuLevel.Normal));
     }
 
-    [Fact]
-    public void KnocksOutAnIdleOpponentWithNormalizedInputs()
+    [Theory]
+    [InlineData(CpuLevel.Easy)]
+    [InlineData(CpuLevel.Normal)]
+    [InlineData(CpuLevel.Hard)]
+    public void KnocksOutAnIdleOpponentWithNormalizedInputs(CpuLevel level)
     {
         var context = Context(initialHealth: 24);
         var state = MatchSimulator.CreateMatch(context);
 
-        for (var i = 0; i < 600 && state.Phase != RoundPhase.RoundEnd; i++)
+        for (var i = 0; i < 900 && state.Phase != RoundPhase.RoundEnd; i++)
         {
-            var cpu = CpuPolicy.Decide(state, context, Cpu);
+            var cpu = CpuPolicy.Decide(state, context, Cpu, level);
             Assert.True(cpu.IsNormalized);
             state = MatchSimulator.Step(state, default, cpu, context);
         }
@@ -148,6 +229,30 @@ public sealed class CpuPolicyTests
         Assert.Equal(RoundEndReason.KnockOut, state.LastRoundReason);
         Assert.Equal(2, state.LastRoundWinners);
     }
+
+    [Fact]
+    public void NormalBeatsAStandingGuardByThrowsInsteadOfPushingItOut()
+    {
+        var context = Context(initialHealth: 100);
+        var state = MatchSimulator.CreateMatch(context);
+        var guard = new InputFrame(InputFrame.Guard);
+
+        for (var i = 0; i < 3600 && state.Phase != RoundPhase.RoundEnd; i++)
+        {
+            state = MatchSimulator.Step(state, guard, CpuPolicy.Decide(state, context, Cpu, CpuLevel.Normal), context);
+        }
+
+        Assert.Equal(RoundPhase.RoundEnd, state.Phase);
+        Assert.Equal(RoundEndReason.KnockOut, state.LastRoundReason);
+        Assert.Equal(2, state.LastRoundWinners);
+    }
+
+    private static byte MoveIndexOf(HitHeight height) => height switch
+    {
+        HitHeight.High => JabIndex,
+        HitHeight.Mid => LauncherIndex,
+        _ => LowKickIndex,
+    };
 
     private static MatchState InRange(MatchContext context, uint frameNumber)
     {
@@ -173,6 +278,9 @@ public sealed class CpuPolicyTests
 
     private static MatchState Attacking(MatchState state, byte moveIndex) =>
         state.WithPlayer(0, state.GetPlayer(0) with { State = StateKind.Attack, CurrentMove = moveIndex });
+
+    private static MatchState OpponentIn(MatchState state, StateKind opponentState) =>
+        state.WithPlayer(0, state.GetPlayer(0) with { State = opponentState, StunFrames = 30 });
 
     private static MoveData Strike(string name, string command, HitHeight height, Fix16 y, bool knockdown) => new()
     {

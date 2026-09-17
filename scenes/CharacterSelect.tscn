@@ -59,7 +59,7 @@ text = "戻る"
 [node name="HintLabel" type="Label" parent="VBoxContainer"]
 layout_mode = 2
 horizontal_alignment = 1
-text = "J:P1決定  テンキー1:P2決定  K:次のステージ  Esc:戻る"
+text = "J:P1決定  テンキー1:P2決定  K:次のステージ  L:CPUの強さ  Esc:戻る"
 
 [connection signal="pressed" from="VBoxContainer/NextStageButton" to="." method="OnNextStagePressed"]
 [connection signal="pressed" from="VBoxContainer/ConfirmP1Button" to="." method="OnConfirmP1Pressed"]

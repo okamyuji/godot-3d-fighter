@@ -17,8 +17,11 @@ public sealed partial class MatchScreen : FightScreenBase, IE2eScreen
     public bool TryInvoke(string action) => false;
 
     /// <summary>P2がCPUなら、キーボードとE2Eの上書きを読まずにCpuPolicyの入力を使う。</summary>
-    protected override InputFrame ReadP2Input() =>
-        GetGameState().P2IsCpu ? CpuPolicy.Decide(State, Context, 1) : InputMapper.Read(2);
+    protected override InputFrame ReadP2Input()
+    {
+        var gameState = GetGameState();
+        return gameState.P2IsCpu ? CpuPolicy.Decide(State, Context, 1, gameState.CpuLevel) : InputMapper.Read(2);
+    }
 
     protected override void OnAfterStep()
     {

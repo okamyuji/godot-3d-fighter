@@ -12,19 +12,33 @@ public static class CpuPolicy
     /// <summary>相手へ近づくのをやめて技を出す水平距離。boxのジャブ、ローキック、中段、投げがすべて届く。</summary>
     public static readonly Fix16 AttackDistance = Fix16.One;
 
-    /// <summary>届く距離で技を選ぶ周期（フレーム）。決定フレーム以外は中立にして、ボタンを押した瞬間を作る。</summary>
-    public const uint DecisionPeriod = 8;
+    private const byte ThrowCommand = InputFrame.Punch | InputFrame.Guard;
 
-    public static InputFrame Decide(in MatchState state, MatchContext context, int slot)
+    /// <summary>手強さごとの振る舞い。DecisionPeriodは届く距離で技を選ぶ周期（フレーム）で、決定フレーム以外は中立にしてボタンを押した瞬間を作る。</summary>
+    private readonly record struct Profile(uint DecisionPeriod, bool GuardsStrikes, bool BreaksGuard, bool EscapesThrows);
+
+    public static InputFrame Decide(in MatchState state, MatchContext context, int slot, CpuLevel level)
     {
         ArgumentNullException.ThrowIfNull(context);
+        var profile = ProfileOf(level);
         var opponentSlot = 1 - slot;
         var me = state.GetPlayer(slot);
         var opponent = state.GetPlayer(opponentSlot);
 
-        if (GuardAgainst(opponent, context.Characters[opponentSlot]) is { } guard)
+        if (profile.GuardsStrikes && GuardAgainst(opponent, context.Characters[opponentSlot]) is { } guard)
         {
             return guard;
+        }
+
+        // 硬直中の相手には攻めず、番を回す。硬直へ重ねると押し戻しが連鎖して縁まで運んでしまう。
+        if (opponent.State is StateKind.Blockstun or StateKind.CrouchBlockstun)
+        {
+            return default;
+        }
+
+        if (profile.EscapesThrows && me.State == StateKind.Thrown)
+        {
+            return new InputFrame(ThrowCommand);
         }
 
         var forward = Forward(state, slot);
@@ -33,8 +47,25 @@ public static class CpuPolicy
             return new InputFrame(forward);
         }
 
-        return Attack(state.FrameNumber, forward);
+        if (state.FrameNumber % profile.DecisionPeriod != 0)
+        {
+            return default;
+        }
+
+        if (profile.BreaksGuard && GuardBreaker(opponent.State, forward) is { } breaker)
+        {
+            return breaker;
+        }
+
+        return Cycle(state.FrameNumber / profile.DecisionPeriod, forward);
     }
+
+    private static Profile ProfileOf(CpuLevel level) => level switch
+    {
+        CpuLevel.Easy => new Profile(24, GuardsStrikes: false, BreaksGuard: false, EscapesThrows: false),
+        CpuLevel.Hard => new Profile(8, GuardsStrikes: true, BreaksGuard: true, EscapesThrows: true),
+        _ => new Profile(8, GuardsStrikes: true, BreaksGuard: true, EscapesThrows: false),
+    };
 
     /// <summary>相手の打撃の段に合わせたガード。相手が打撃を出していなければnull。</summary>
     private static InputFrame? GuardAgainst(in PlayerState opponent, CharacterData character)
@@ -55,6 +86,14 @@ public static class CpuPolicy
             : new InputFrame(InputFrame.Guard);
     }
 
+    /// <summary>立ちガードには投げ、しゃがみガードには中段（6K）。ガードしていなければnull。</summary>
+    private static InputFrame? GuardBreaker(StateKind opponentState, byte forward) => opponentState switch
+    {
+        StateKind.Guard => new InputFrame(ThrowCommand),
+        StateKind.CrouchGuard => new InputFrame((byte)(forward | InputFrame.Kick)),
+        _ => null,
+    };
+
     /// <summary>MatchSimulatorが行動の判断で読むのと同じ、更新前のCameraYawから画面上の前方向を決める。</summary>
     private static byte Forward(in MatchState state, int slot)
     {
@@ -63,19 +102,11 @@ public static class CpuPolicy
         return onLeftSide ? InputFrame.Right : InputFrame.Left;
     }
 
-    private static InputFrame Attack(uint frameNumber, byte forward)
+    private static InputFrame Cycle(uint decisionIndex, byte forward) => (decisionIndex % 4) switch
     {
-        if (frameNumber % DecisionPeriod != 0)
-        {
-            return default;
-        }
-
-        return (frameNumber / DecisionPeriod % 4) switch
-        {
-            0 => new InputFrame(InputFrame.Punch),
-            1 => new InputFrame(InputFrame.Kick),
-            2 => new InputFrame((byte)(forward | InputFrame.Kick)),
-            _ => new InputFrame((byte)(InputFrame.Punch | InputFrame.Guard)),
-        };
-    }
+        0 => new InputFrame(InputFrame.Punch),
+        1 => new InputFrame(InputFrame.Kick),
+        2 => new InputFrame((byte)(forward | InputFrame.Kick)),
+        _ => new InputFrame(ThrowCommand),
+    };
 }

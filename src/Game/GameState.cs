@@ -24,6 +24,8 @@ public sealed partial class GameState : Node
     /// <summary>対戦でP1だけが決定した時にtrueになり、試合画面がP2の入力をCpuPolicyから作る。</summary>
     public bool P2IsCpu { get; set; }
 
+    public CpuLevel CpuLevel { get; set; } = CpuLevel.Normal;
+
     public int StageIndex { get; private set; }
 
     public bool IsTraining { get; set; }
@@ -52,6 +54,7 @@ public sealed partial class GameState : Node
         P1Confirmed = false;
         P2Confirmed = false;
         P2IsCpu = false;
+        CpuLevel = CpuLevel.Normal;
         StageIndex = 0;
         _roundHistory.Clear();
     }

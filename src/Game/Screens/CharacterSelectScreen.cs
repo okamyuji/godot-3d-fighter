@@ -1,6 +1,7 @@
 using System.Globalization;
 using Godot;
 using Godot3dFighter.Core;
+using Godot3dFighter.Core.Sim;
 
 namespace Godot3dFighter.Game.Screens;
 
@@ -58,6 +59,10 @@ public sealed partial class CharacterSelectScreen : Control, IE2eScreen
         {
             TryInvoke("NextStage");
         }
+        else if (@event.IsActionPressed("p1_guard"))
+        {
+            TryInvoke("NextCpuLevel");
+        }
         else if (@event.IsActionPressed("ui_cancel"))
         {
             TryInvoke("Back");
@@ -71,6 +76,10 @@ public sealed partial class CharacterSelectScreen : Control, IE2eScreen
         {
             case "NextStage":
                 state.NextStage();
+                Refresh();
+                return true;
+            case "NextCpuLevel":
+                state.CpuLevel = state.CpuLevel == CpuLevel.Hard ? CpuLevel.Easy : state.CpuLevel + 1;
                 Refresh();
                 return true;
             case "ConfirmP1":
@@ -128,7 +137,7 @@ public sealed partial class CharacterSelectScreen : Control, IE2eScreen
         var state = GetState();
         if (_stageLabel is not null)
         {
-            _stageLabel.Text = "ステージ: " + state.StageName;
+            _stageLabel.Text = "ステージ: " + state.StageName + (state.IsTraining ? "" : "  CPU: " + LevelName(state.CpuLevel));
         }
 
         if (_statusLabel is not null)
@@ -150,8 +159,15 @@ public sealed partial class CharacterSelectScreen : Control, IE2eScreen
         }
 
         var seconds = (_cpuCountdown + Limits.FramesPerSecond - 1) / Limits.FramesPerSecond;
-        return "CPU（" + seconds.ToString(CultureInfo.InvariantCulture) + "秒後に開始、テンキー1で参加）";
+        return "CPU（" + LevelName(state.CpuLevel) + "、" + seconds.ToString(CultureInfo.InvariantCulture) + "秒後に開始、テンキー1で参加）";
     }
+
+    private static string LevelName(CpuLevel level) => level switch
+    {
+        CpuLevel.Easy => "やさしい",
+        CpuLevel.Hard => "つよい",
+        _ => "ふつう",
+    };
 
     private GameState GetState() => GetNode<GameState>("/root/GameState");
 
