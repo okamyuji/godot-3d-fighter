@@ -1,6 +1,7 @@
 #!/usr/bin/env sh
 set -eu
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# core.hooksPathが絶対パスだと$0は本体のチェックアウトを指し、worktreeのコミットで本体を検査してしまう。
+ROOT="$(git rev-parse --show-toplevel)"
 
 "$ROOT/tools/doclint.sh"
 dotnet format "$ROOT/Godot3dFighter.sln" --verify-no-changes

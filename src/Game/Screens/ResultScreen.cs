@@ -14,7 +14,13 @@ public sealed partial class ResultScreen : Control, IE2eScreen
     {
         AddToGroup("e2e_screen");
         _resultLabel = GetNodeOrNull<Label>("%ResultLabel");
+        GetNode<Button>("VBoxContainer/ConfirmButton").GrabFocus();
         Refresh();
+    }
+
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        MenuKeys.Handle(this, @event);
     }
 
     public bool TryInvoke(string action)

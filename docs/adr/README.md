@@ -29,3 +29,4 @@
 | [ADR-0023](0023-screens-and-primary-flows.md) | 画面の構成と遷移を最初の到達点で確定し、主要導線をすべて走破する | 無し |
 | [ADR-0024](0024-wall-stun.md) | 壁に叩きつけると壁やられになり、1回の連続技で1回だけ起きる | C-35 |
 | [ADR-0025](0025-character-figure-from-capsules.md) | キャラの見た目は判定データから組み立てた図形にする | 無し |
+| [ADR-0026](0026-cpu-opponent-policy.md) | CPUの相手はCoreの方針関数で入力を作り、試合の処理は変えない | C-36 |

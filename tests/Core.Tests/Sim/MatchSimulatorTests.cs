@@ -78,6 +78,40 @@ public sealed class MatchSimulatorTests
         ],
     };
 
+    private static MoveData LowKick() => new()
+    {
+        Name = "lowKick",
+        Command = "K",
+        Kind = MoveKind.Strike,
+        Posture = Posture.Crouch,
+        Startup = 5,
+        Active = 3,
+        Recovery = 8,
+        Tracking = 2,
+        Height = HitHeight.Low,
+        Damage = 10,
+        CounterDamage = 15,
+        Hitstun = 12,
+        CounterHitstun = 16,
+        Blockstun = 6,
+        Hitstop = 4,
+        Knockdown = false,
+        CounterKnockdown = false,
+        HitsDown = false,
+        Pushback = Fix16.FromDecimal(0.2m),
+        Motion = [],
+        Windows =
+        [
+            new HitWindow
+            {
+                From = 5,
+                To = 7,
+                Hit = [new HitCapsule(new Vec3Fix(Fix16.FromDecimal(0.3m), Fix16.FromDecimal(0.15m), Fix16.Zero), new Vec3Fix(Fix16.FromDecimal(0.9m), Fix16.FromDecimal(0.15m), Fix16.Zero), Fix16.FromDecimal(0.15m))],
+                Hurt = [],
+            },
+        ],
+    };
+
     private static CharacterData Character() => new()
     {
         Name = "box",
@@ -97,7 +131,7 @@ public sealed class MatchSimulatorTests
         StandHurtCapsules = [new HitCapsule(new Vec3Fix(Fix16.Zero, Fix16.FromDecimal(0.2m), Fix16.Zero), new Vec3Fix(Fix16.Zero, Fix16.FromDecimal(1.5m), Fix16.Zero), Fix16.FromDecimal(0.3m))],
         CrouchHurtCapsules = [new HitCapsule(new Vec3Fix(Fix16.Zero, Fix16.FromDecimal(0.3m), Fix16.Zero), new Vec3Fix(Fix16.Zero, Fix16.FromDecimal(0.8m), Fix16.Zero), Fix16.FromDecimal(0.35m))],
         DownHurtCapsules = [new HitCapsule(new Vec3Fix(Fix16.FromDecimal(-0.8m), Fix16.FromDecimal(0.15m), Fix16.Zero), new Vec3Fix(Fix16.FromDecimal(0.8m), Fix16.FromDecimal(0.15m), Fix16.Zero), Fix16.FromDecimal(0.2m))],
-        Moves = [Jab(), Launcher()],
+        Moves = [Jab(), Launcher(), LowKick()],
     };
 
     private static StageData Stage() => new()
@@ -228,13 +262,7 @@ public sealed class MatchSimulatorTests
     public void JabConnectingDealsDamageAndPutsDefenderInHitstun()
     {
         var context = Context();
-        var state = EnterFight(context);
-
-        // P1をP2に近づける（P2は+X側）。
-        for (var i = 0; i < 20 && state.GetPlayer(0).Position.HorizontalDistanceSquared(state.GetPlayer(1).Position) > 0; i++)
-        {
-            state = MatchSimulator.Step(state, new InputFrame(InputFrame.Right), default, context);
-        }
+        var state = Approach(EnterFight(context), context);
 
         state = MatchSimulator.Step(state, new InputFrame(InputFrame.Punch), default, context);
         var startingHealth = state.GetPlayer(1).Health;
@@ -485,6 +513,72 @@ public sealed class MatchSimulatorTests
         matchState = MatchSimulator.Step(matchState, default, default, context);
 
         Assert.Equal(StateKind.Idle, matchState.GetPlayer(0).State);
+    }
+
+    [Fact]
+    public void JabBlockedWhileStandingEntersBlockstunWithoutDamage()
+    {
+        var context = Context();
+        var state = Approach(EnterFight(context), context);
+        state = state.WithPlayer(1, state.GetPlayer(1) with { State = StateKind.Guard });
+        var startingHealth = state.GetPlayer(1).Health;
+        var startingX = state.GetPlayer(1).Position.X.Raw;
+
+        state = MatchSimulator.Step(state, new InputFrame(InputFrame.Punch), new InputFrame(InputFrame.Guard), context);
+        for (var i = 0; i < 6; i++)
+        {
+            state = MatchSimulator.Step(state, default, new InputFrame(InputFrame.Guard), context);
+        }
+
+        Assert.Equal(startingHealth, state.GetPlayer(1).Health);
+        Assert.Equal(StateKind.Blockstun, state.GetPlayer(1).State);
+        Assert.True(state.GetPlayer(1).Position.X.Raw > startingX, "ガードした側は攻撃した側から離れる方向へ押される。");
+    }
+
+    [Fact]
+    public void LowBlockedWhileCrouchGuardingEntersCrouchBlockstun()
+    {
+        var context = Context();
+        var state = Approach(EnterFight(context), context);
+        var crouchGuard = new InputFrame((byte)(InputFrame.Guard | InputFrame.Down));
+        state = state.WithPlayer(1, state.GetPlayer(1) with { State = StateKind.CrouchGuard });
+
+        state = MatchSimulator.Step(state, new InputFrame(InputFrame.Kick), crouchGuard, context);
+        for (var i = 0; i < 6; i++)
+        {
+            state = MatchSimulator.Step(state, default, crouchGuard, context);
+        }
+
+        Assert.Equal(StateKind.CrouchBlockstun, state.GetPlayer(1).State);
+    }
+
+    [Fact]
+    public void LowBlockedDuringCrouchBlockstunStaysInCrouchBlockstun()
+    {
+        var context = Context();
+        var state = Approach(EnterFight(context), context);
+        state = state.WithPlayer(1, state.GetPlayer(1) with { State = StateKind.CrouchBlockstun, StunFrames = 60 });
+        var startingHealth = state.GetPlayer(1).Health;
+
+        state = MatchSimulator.Step(state, new InputFrame(InputFrame.Kick), default, context);
+        for (var i = 0; i < 6; i++)
+        {
+            state = MatchSimulator.Step(state, default, default, context);
+        }
+
+        Assert.Equal(startingHealth, state.GetPlayer(1).Health);
+        Assert.Equal(StateKind.CrouchBlockstun, state.GetPlayer(1).State);
+    }
+
+    /// <summary>P1をP2へ歩かせて体が触れるまで近づける（P2は+X側）。</summary>
+    private static MatchState Approach(MatchState state, MatchContext context)
+    {
+        for (var i = 0; i < 20 && state.GetPlayer(0).Position.HorizontalDistanceSquared(state.GetPlayer(1).Position) > 0; i++)
+        {
+            state = MatchSimulator.Step(state, new InputFrame(InputFrame.Right), default, context);
+        }
+
+        return state;
     }
 
     [Fact]

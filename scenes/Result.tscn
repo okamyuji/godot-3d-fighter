@@ -38,4 +38,9 @@ text = ""
 layout_mode = 2
 text = "タイトルへ"
 
+[node name="HintLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+horizontal_alignment = 1
+text = "J:タイトルへ"
+
 [connection signal="pressed" from="VBoxContainer/ConfirmButton" to="." method="OnConfirmPressed"]

@@ -6,7 +6,17 @@ public sealed partial class TitleScreen : Control, IE2eScreen
 {
     public string ScreenName => "Title";
 
-    public override void _Ready() => AddToGroup("e2e_screen");
+    public override void _Ready()
+    {
+        AddToGroup("e2e_screen");
+        GetNode<Button>("VBoxContainer/VersusButton").GrabFocus();
+    }
+
+    /// <summary>W/Sで選択肢を移り、Jで決める。矢印キーとEnterはGodotの既定のフォーカス移動で動く。</summary>
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        MenuKeys.Handle(this, @event);
+    }
 
     public bool TryInvoke(string action)
     {

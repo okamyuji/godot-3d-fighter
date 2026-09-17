@@ -103,7 +103,7 @@ public sealed partial class CharacterFigure : Node3D
         PlaceLimb(_thighL, _shinL, hip + new Vector3(0, 0, -HipHalf), pose.FootL, Thigh, Shin, Forward);
         PlaceLimb(_thighR, _shinR, hip + new Vector3(0, 0, HipHalf), pose.FootR, Thigh, Shin, Forward);
 
-        if (player.LastHitKind != HitKind.None)
+        if (player.LastHitKind is HitKind.Hit or HitKind.CounterHit or HitKind.WallHit or HitKind.CounterWallHit or HitKind.Thrown)
         {
             _flashFrames = HitFlashFrames;
         }

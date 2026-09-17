@@ -1,4 +1,5 @@
 using Godot3dFighter.Core.Input;
+using Godot3dFighter.Core.Sim;
 using Godot3dFighter.Core.State;
 
 namespace Godot3dFighter.Game.Screens;
@@ -15,7 +16,9 @@ public sealed partial class MatchScreen : FightScreenBase, IE2eScreen
 
     public bool TryInvoke(string action) => false;
 
-    protected override InputFrame ReadP2Input() => InputMapper.Read(2);
+    /// <summary>P2がCPUなら、キーボードとE2Eの上書きを読まずにCpuPolicyの入力を使う。</summary>
+    protected override InputFrame ReadP2Input() =>
+        GetGameState().P2IsCpu ? CpuPolicy.Decide(State, Context, 1) : InputMapper.Read(2);
 
     protected override void OnAfterStep()
     {
