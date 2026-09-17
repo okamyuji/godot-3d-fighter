@@ -72,6 +72,7 @@ public static class MatchSimulator
 
         // 4. 状態の経過
         result = ForEachActivePlayer(result, stopped, onLeftSide0, AdvanceState, context);
+        result = AdvanceThrow(result, context, onLeftSide0);
 
         // 5. 行動の判断
         result = ForEachActivePlayer(result, stopped, onLeftSide0, ChooseAction, context);
@@ -468,10 +469,12 @@ public static class MatchSimulator
         var p1HitsP2 = stopped[0] ? default : HitResolver.Detect(p1, context.Characters[0], p2, context.Characters[1]);
         var p2HitsP1 = stopped[1] ? default : HitResolver.Detect(p2, context.Characters[1], p1, context.Characters[0]);
 
+        MoveData? throwMoveFor2 = null;
+        MoveData? throwMoveFor1 = null;
         var throwsP2 = !stopped[0] && p2HitsP1.Kind == HitOutcomeKind.None
-            && ThrowResolver.TryDetect(p1, context.Characters[0], p2, context.Characters[1], out var throwMoveFor2);
+            && ThrowResolver.TryDetect(p1, context.Characters[0], p2, context.Characters[1], out throwMoveFor2);
         var throwsP1 = !stopped[1] && p1HitsP2.Kind == HitOutcomeKind.None
-            && ThrowResolver.TryDetect(p2, context.Characters[1], p1, context.Characters[0], out var throwMoveFor1);
+            && ThrowResolver.TryDetect(p2, context.Characters[1], p1, context.Characters[0], out throwMoveFor1);
 
         byte maxHitstop = 0;
 
@@ -494,13 +497,13 @@ public static class MatchSimulator
         }
         else if (throwsP2)
         {
-            p1 = p1 with { State = StateKind.Attack };
-            p2 = p2 with { State = StateKind.Thrown, StateFrame = 0, Facing = new Angle16(unchecked((ushort)(p1.Facing.Value + 32768))) };
+            (p1, p2) = ThrowSequence.Start(p1, p2);
+            (p1, p2) = ApplyEscapeCheck(p1, p2, throwMoveFor2!, OnLeftSide(1, onLeftSide0), context);
         }
         else if (throwsP1)
         {
-            p2 = p2 with { State = StateKind.Attack };
-            p1 = p1 with { State = StateKind.Thrown, StateFrame = 0, Facing = new Angle16(unchecked((ushort)(p2.Facing.Value + 32768))) };
+            (p2, p1) = ThrowSequence.Start(p2, p1);
+            (p2, p1) = ApplyEscapeCheck(p2, p1, throwMoveFor1!, OnLeftSide(0, onLeftSide0), context);
         }
 
         if (maxHitstop > 0)
@@ -515,6 +518,41 @@ public static class MatchSimulator
     }
 
     private static byte MaxByte(byte a, byte b) => a > b ? a : b;
+
+    /// <summary>投げの最中の進み。投げ抜けの確認を投げの終わりより先に行う。どちらの席が投げた側でも順序は同じにする。</summary>
+    private static MatchState AdvanceThrow(MatchState state, MatchContext context, bool onLeftSide0)
+    {
+        var throwerIndex = state.GetPlayer(0).State == StateKind.Throwing ? 0 : state.GetPlayer(1).State == StateKind.Throwing ? 1 : -1;
+        if (throwerIndex < 0)
+        {
+            return state;
+        }
+
+        var thrownIndex = 1 - throwerIndex;
+        var thrower = state.GetPlayer(throwerIndex);
+        var thrown = state.GetPlayer(thrownIndex);
+        var move = context.Characters[throwerIndex].Moves[thrower.CurrentMove];
+
+        (thrower, thrown) = ApplyEscapeCheck(thrower, thrown, move, OnLeftSide(thrownIndex, onLeftSide0), context);
+        if (thrower.State == StateKind.Throwing && thrower.StateFrame >= context.Rules.ThrowEscapeFrames)
+        {
+            (thrower, thrown) = ThrowSequence.Finish(thrower, thrown, move, context);
+        }
+
+        return state.WithPlayer(throwerIndex, thrower).WithPlayer(thrownIndex, thrown);
+    }
+
+    private static (PlayerState Thrower, PlayerState Thrown) ApplyEscapeCheck(
+        PlayerState thrower, PlayerState thrown, MoveData move, bool thrownOnLeftSide, MatchContext context)
+    {
+        var check = ThrowSequence.CheckEscape(thrown, thrownOnLeftSide, move);
+        return check switch
+        {
+            ThrowEscapeCheck.Escaped => ThrowSequence.Escape(thrower, thrown, context),
+            ThrowEscapeCheck.Tried => (thrower, thrown with { Flags = thrown.Flags | PlayerFlags.ThrowEscapeTried }),
+            _ => (thrower, thrown),
+        };
+    }
 
     private static (PlayerState Defender, PlayerState Attacker) ApplyHit(PlayerState attacker, PlayerState defender, HitOutcome outcome, MatchContext context)
     {
@@ -600,7 +638,7 @@ public static class MatchSimulator
         };
     }
 
-    private static Vec3Fix HorizontalUnit(Vec3Fix diff, Angle16 fallbackFacing)
+    internal static Vec3Fix HorizontalUnit(Vec3Fix diff, Angle16 fallbackFacing)
     {
         var distSq = diff.HorizontalDistanceSquared(default);
         if (distSq == 0)
