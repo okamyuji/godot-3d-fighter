@@ -8,7 +8,7 @@ jobs:
   ci:
     permissions:
       contents: read
-    uses: okamyuji/reusable-workflows/.github/workflows/dotnet-ci.yml@v1
+    uses: okamyuji/reusable-workflows/.github/workflows/dotnet-ci.yml@test/ubuntu-26.04
     with:
       godot-sha512: "1855960b27ee3ef5e66e5e228cced69d55637b24334a7411162687dcd077d8f9f645348cdb8eae984bec8135d49ed855a1e3a16476786b8bce60774fd8402d13"
       mutation-score-threshold: 60
@@ -16,4 +16,4 @@ jobs:
   security:
     permissions:
       contents: read
-    uses: okamyuji/reusable-workflows/.github/workflows/security-scan.yml@v1
+    uses: okamyuji/reusable-workflows/.github/workflows/security-scan.yml@test/ubuntu-26.04
